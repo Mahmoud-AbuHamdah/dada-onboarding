@@ -1,17 +1,23 @@
 import streamlit as st
-import pandas as pd
+from data_loader import load_all, check_data
 
+st.set_page_config(page_title="Dada Group Academy", page_icon="🎓")
 st.title("Dada Group Academy")
-st.write("Welcome! This is my first Streamlit page.")
 
-# Load the knowledge base. "utf-8-sig" removes the hidden BOM character
-# at the start of the file, which would otherwise break the "id" column name.
-kb = pd.read_csv("data/knowledge_base.csv", encoding="utf-8-sig")
+data = load_all()
 
-st.write(f"The knowledge base has {len(kb)} facts.")
-st.dataframe(kb)
+# Data health check
+problems = check_data(data)
+if problems:
+    st.error("Data problems found:")
+    for p in problems:
+        st.write("- " + p)
+else:
+    st.success("All data files loaded and links checked: no problems found.")
 
-st.subheader("Facts per topic")
-topic_counts = kb["topic"].value_counts()
-st.write(topic_counts)
-st.bar_chart(topic_counts)
+# Show each file in its own tab
+tabs = st.tabs(["Knowledge", "FAQ", "Scenarios", "Learning plan", "Quiz", "Jury tests"])
+for tab, key in zip(tabs, ["kb", "faq", "scenarios", "plan", "quiz", "jury"]):
+    with tab:
+        st.write(f"{len(data[key])} rows")
+        st.dataframe(data[key], hide_index=True)
