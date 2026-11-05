@@ -64,7 +64,13 @@ def check_data(data):
         if n_milestones != 4:
             problems.append(f"{dept} has {n_milestones} milestones, expected 4")
 
-    # 4. EXERCISE: every scenario's company_value must be one of the five values.
-    #    Write your check here.
+        # 4. Every scenario's company_value must be one of the five values
+    values_rows = data["kb"][data["kb"]["topic"] == "Values"]
+    valid_values = set(values_rows["keyword_en"])
+    for _, row in data["scenarios"].iterrows():
+        if row["company_value"] not in valid_values:
+            problems.append(
+                f"Scenario {row['id']} uses unknown value '{row['company_value']}'"
+            )
 
     return problems
