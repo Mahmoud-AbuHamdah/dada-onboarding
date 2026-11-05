@@ -10,3 +10,8 @@ kb = pd.read_csv("data/knowledge_base.csv", encoding="utf-8-sig")
 
 st.write(f"The knowledge base has {len(kb)} facts.")
 st.dataframe(kb)
+
+st.subheader("Facts per topic")
+topic_counts = kb["topic"].value_counts()
+st.write(topic_counts)
+st.bar_chart(topic_counts)
