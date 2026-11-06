@@ -74,6 +74,17 @@ def assistant_page():
     st.header("💬 Assistant")
     st.write("Coming in Steps 3-6: ask questions and get answers with sources.")
 
+    # Which track did the user choose? (Sales or Delivery)
+    role = st.session_state.role
+
+    # Count the rows for that track in each file
+    n_scenarios = (data["scenarios"]["department"] == role).sum()
+    n_milestones = (data["plan"]["department"] == role).sum()
+
+    st.write(
+        f"Your {role} track has **{n_scenarios}** practice scenarios "
+        f"and **{n_milestones}** learning milestones."
+    )
 
 def scenarios_page():
     st.header("🎭 Practice scenarios")
