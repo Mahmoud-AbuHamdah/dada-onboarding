@@ -1,9 +1,17 @@
 import streamlit as st
 from data_loader import load_all, check_data
+import pandas as pd
+from retrieval import KeywordRetriever
 
 st.set_page_config(page_title="Dada Group Academy", page_icon="🎓", layout="wide")
 
 data = load_all()
+
+@st.cache_resource
+def get_retriever(kb):
+    return KeywordRetriever(kb)
+
+retriever = get_retriever(data["kb"])
 
 # ---------- Remembered between reruns ----------
 if "role" not in st.session_state:
@@ -72,19 +80,26 @@ def welcome_page():
 
 def assistant_page():
     st.header("💬 Assistant")
-    st.write("Coming in Steps 3-6: ask questions and get answers with sources.")
 
-    # Which track did the user choose? (Sales or Delivery)
     role = st.session_state.role
-
-    # Count the rows for that track in each file
     n_scenarios = (data["scenarios"]["department"] == role).sum()
     n_milestones = (data["plan"]["department"] == role).sum()
-
     st.write(
         f"Your {role} track has **{n_scenarios}** practice scenarios "
         f"and **{n_milestones}** learning milestones."
     )
+
+    st.divider()
+    st.subheader("Search the knowledge base (test version)")
+    question = st.text_input("Type a question in Arabic or English")
+
+    if question:
+        results = retriever.search(question)
+        for r in results:
+            with st.container(border=True):
+                st.markdown(f"**{r['id']}** · score {r['score']:.2f} · {r['source']}")
+                st.write(r["text"])
+                st.progress(min(r["score"], 1.0))
 
 def scenarios_page():
     st.header("🎭 Practice scenarios")
@@ -116,6 +131,25 @@ def data_page():
         with tab:
             st.write(f"{len(data[key])} rows")
             st.dataframe(data[key], hide_index=True)
+
+    st.divider()
+    st.subheader("Retrieval test on the sample FAQ")
+    rows = []
+    for _, r in data["faq"].iterrows():
+        expected = str(r["expected_knowledge_ids"]).split(";")
+        top = retriever.search(r["employee_question_ar"], top_k=1)[0]
+        rows.append({
+            "FAQ": r["id"],
+            "Question": r["employee_question_ar"],
+            "Expected": r["expected_knowledge_ids"],
+            "Found": top["id"],
+            "Score": round(top["score"], 2),
+            "Correct": "✅" if top["id"] in expected else "❌",
+        })
+    results_df = pd.DataFrame(rows)
+    n_correct = (results_df["Correct"] == "✅").sum()
+    st.write(f"Top result correct for **{n_correct} of {len(results_df)}** questions.")
+    st.dataframe(results_df, hide_index=True)
 
 
 # ---------- Main flow ----------
