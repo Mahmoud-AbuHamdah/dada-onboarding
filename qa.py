@@ -67,6 +67,25 @@ def fallback(facts, error=None):
     return {"status": "refused", "answer": REFUSAL, "used_ids": [],
             "facts": facts, "mode": "fallback", "error": error}
 
+def call_gemini(client, system_prompt, prompt):
+    """Send one prompt, trying each model in order.
+    Returns (result, model_used, errors). result is None if every model failed."""
+    errors = []
+    for model in MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=0.1,
+                    response_mime_type="application/json",
+                ),
+            )
+            return json.loads(response.text), model, errors
+        except Exception as e:
+            errors.append(f"{model}: {e}")
+    return None, None, errors
 
 def answer_question(question, role, retriever, kb, client):
     """The full pipeline: find facts, ask the AI, check its reply."""
@@ -85,27 +104,10 @@ def answer_question(question, role, retriever, kb, client):
     facts_text = "\n".join(f"[{f['id']}] {f['text']}" for f in facts)
     prompt = f"Employee training track: {role}\n\nFACTS:\n{facts_text}\n\nQUESTION:\n{question}"
 
-    out = None
-    errors = []
-    for model in MODELS:
-        try:
-            response = client.models.generate_content(
-                model=model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                    temperature=0.1,
-                    response_mime_type="application/json",
-                ),
-            )
-            out = json.loads(response.text)
-            out["model"] = model
-            break                      # success: stop trying other models
-        except Exception as e:         # overloaded, timeout, rate limit, bad JSON...
-            errors.append(f"{model}: {e}")
-
+    out, model, errors = call_gemini(client, SYSTEM_PROMPT, prompt)
     if out is None:                    # every model failed
         return fallback(facts, error=" | ".join(errors))
+    out["model"] = model
 
     # 4. Check the AI's reply: keep only IDs we actually gave it
     allowed = {f["id"] for f in facts}

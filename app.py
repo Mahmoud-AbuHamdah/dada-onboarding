@@ -5,6 +5,7 @@ from retrieval import KeywordRetriever, SemanticRetriever, load_model
 import html
 import re
 from qa import answer_question, get_client
+from scenarios import evaluate_response
 
 st.set_page_config(page_title="Dada Group Academy", page_icon="🎓", layout="wide")
 
@@ -32,6 +33,10 @@ client = get_llm_client()
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "feedback" not in st.session_state:
+    st.session_state.feedback = {}          # scenario id -> feedback
+if "done_scenarios" not in st.session_state:
+    st.session_state.done_scenarios = set() # scenario ids completed    
 
 # ---------- Remembered between reruns ----------
 if "role" not in st.session_state:
@@ -100,6 +105,31 @@ def show_answer(out):
             used = " ← used" if f["id"] in out["used_ids"] else ""
             st.write(f"**{f['id']}** · score {f['score']:.2f}{used}")
             show_text(f["text"])
+
+def show_feedback(fb, sc):
+    """Show the feedback for one scenario response."""
+    score = int(fb.get("score", 0))
+    st.subheader(f"Feedback: {'⭐' * score}{'☆' * (5 - score)} ({score}/5)")
+
+    if fb["mode"] == "fallback":
+        st.warning("AI feedback is unavailable, so this is a rough comparison "
+                   "with the suggested response.")
+
+    if fb.get("strengths"):
+        st.markdown("**What you did well**")
+        show_text(fb["strengths"])
+    if fb.get("improve"):
+        st.markdown("**What to improve**")
+        show_text(fb["improve"])
+
+    v = fb["value"]
+    st.info(f"💎 Company value: **{v['name_en']}** ({v['name_ar']}) · source {v['id']}")
+    show_text(fb["value_link"])
+
+    with st.expander("Suggested good response"):
+        show_text(sc["suggested_good_response_ar"])
+        if fb.get("model"):
+            st.caption(f"Feedback written by: {fb['model']}")
 
 # ---------- Pages ----------
 def welcome_page():
@@ -172,7 +202,38 @@ def assistant_page():
 
 def scenarios_page():
     st.header("🎭 Practice scenarios")
-    st.write("Coming in Step 7.")
+    st.caption("These are fictional training examples, not official Dada Group "
+               "procedures. Feedback is for practice only, not an evaluation.")
+
+    role = st.session_state.role
+    role_sc = data["scenarios"][data["scenarios"]["department"] == role].reset_index(drop=True)
+
+    # Choose a scenario
+    labels = []
+    for _, r in role_sc.iterrows():
+        tick = "✅ " if r["id"] in st.session_state.done_scenarios else ""
+        labels.append(f"{tick}{r['id']} · {r['company_value']}")
+    choice = st.radio("Choose a scenario", labels, horizontal=True)
+    sc = role_sc.iloc[labels.index(choice)]
+
+    # Show the situation
+    with st.container(border=True):
+        st.markdown(f"**Situation** · practises: {sc['company_value']}")
+        show_text(sc["scenario_ar"])
+
+    # The user's response
+    answer = st.text_area("What would you do or say? (Arabic or English)",
+                          key=f"resp_{sc['id']}")
+    if st.button("Get feedback", type="primary", disabled=not answer.strip()):
+        with st.spinner("Reviewing your response..."):
+            fb = evaluate_response(sc, answer, data["kb"], client, get_model())
+        st.session_state.feedback[sc["id"]] = fb
+        st.session_state.done_scenarios.add(sc["id"])
+
+    # Feedback, if there is any for this scenario
+    fb = st.session_state.feedback.get(sc["id"])
+    if fb:
+        show_feedback(fb, sc)
 
 
 def plan_page():
