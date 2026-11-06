@@ -1,17 +1,25 @@
 import streamlit as st
 from data_loader import load_all, check_data
 import pandas as pd
-from retrieval import KeywordRetriever
+from retrieval import KeywordRetriever, SemanticRetriever, load_model
 
 st.set_page_config(page_title="Dada Group Academy", page_icon="🎓", layout="wide")
 
 data = load_all()
 
 @st.cache_resource
-def get_retriever(kb):
-    return KeywordRetriever(kb)
+def get_model():
+    return load_model()          # loaded once, kept in memory
 
-retriever = get_retriever(data["kb"])
+
+@st.cache_resource
+def get_retrievers(kb):
+    return {
+        "Keyword": KeywordRetriever(kb),
+        "AI (meaning)": SemanticRetriever(kb, get_model()),
+    }
+
+retrievers = get_retrievers(data["kb"])
 
 # ---------- Remembered between reruns ----------
 if "role" not in st.session_state:
@@ -92,9 +100,9 @@ def assistant_page():
     st.divider()
     st.subheader("Search the knowledge base (test version)")
     question = st.text_input("Type a question in Arabic or English")
-
+    method = st.radio("Search method", list(retrievers), horizontal=True)
     if question:
-        results = retriever.search(question)
+        results = retrievers[method].search(question)
         for r in results:
             with st.container(border=True):
                 st.markdown(f"**{r['id']}** · score {r['score']:.2f} · {r['source']}")
@@ -137,19 +145,40 @@ def data_page():
     rows = []
     for _, r in data["faq"].iterrows():
         expected = str(r["expected_knowledge_ids"]).split(";")
-        top = retriever.search(r["employee_question_ar"], top_k=1)[0]
-        rows.append({
-            "FAQ": r["id"],
-            "Question": r["employee_question_ar"],
-            "Expected": r["expected_knowledge_ids"],
-            "Found": top["id"],
-            "Score": round(top["score"], 2),
-            "Correct": "✅" if top["id"] in expected else "❌",
-        })
+        row = {"FAQ": r["id"], "Question": r["employee_question_ar"],
+               "Expected": r["expected_knowledge_ids"]}
+        for name, retr in retrievers.items():
+            top = retr.search(r["employee_question_ar"], top_k=1)[0]
+            row[f"{name} found"] = top["id"]
+            row[f"{name} score"] = round(top["score"], 2)
+            row[f"{name} ✓"] = "✅" if top["id"] in expected else "❌"
+        rows.append(row)
     results_df = pd.DataFrame(rows)
-    n_correct = (results_df["Correct"] == "✅").sum()
-    st.write(f"Top result correct for **{n_correct} of {len(results_df)}** questions.")
+    for name in retrievers:
+        n_ok = (results_df[f"{name} ✓"] == "✅").sum()
+        st.write(f"**{name}:** top result correct for **{n_ok} of {len(results_df)}**")
     st.dataframe(results_df, hide_index=True)
+
+    st.subheader("Questions that should be refused")
+    st.caption("None of these are answered in the knowledge base. "
+               "Their scores show how high a 'wrong' match can get.")
+    unanswerable = [
+        "ما رقم مدير الموارد البشرية؟",
+        "كم راتبي؟",
+        "ما الطقس اليوم؟",
+        "أين أركن سيارتي؟",
+        "من هو المدير العام؟",
+        "كم يوم إجازة سنوية لي؟",
+    ]
+    rows = []
+    for q in unanswerable:
+        row = {"Question": q}
+        for name, retr in retrievers.items():
+            top = retr.search(q, top_k=1)[0]
+            row[f"{name} found"] = top["id"]
+            row[f"{name} score"] = round(top["score"], 2)
+        rows.append(row)
+    st.dataframe(pd.DataFrame(rows), hide_index=True)
 
 
 # ---------- Main flow ----------
