@@ -2,6 +2,9 @@ import streamlit as st
 from data_loader import load_all, check_data
 import pandas as pd
 from retrieval import KeywordRetriever, SemanticRetriever, load_model
+import html
+import re
+from qa import answer_question, get_client
 
 st.set_page_config(page_title="Dada Group Academy", page_icon="🎓", layout="wide")
 
@@ -20,6 +23,15 @@ def get_retrievers(kb):
     }
 
 retrievers = get_retrievers(data["kb"])
+
+@st.cache_resource
+def get_llm_client():
+    return get_client()
+
+client = get_llm_client()
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # ---------- Remembered between reruns ----------
 if "role" not in st.session_state:
@@ -51,6 +63,43 @@ DISCLAIMER = (
     "This tool does not make any employment decisions."
 )
 
+def show_text(text):
+    """Show text right-to-left if it contains Arabic."""
+    safe = html.escape(text).replace("\n", "<br>")
+    if re.search(r"[\u0600-\u06FF]", text):
+        st.markdown(f'<div dir="rtl" style="text-align:right">{safe}</div>',
+                    unsafe_allow_html=True)
+    else:
+        st.markdown(safe, unsafe_allow_html=True)
+
+
+def show_answer(out):
+    """Show one assistant answer with its status, sources and explanation."""
+    badges = {"answered": "✅ Answered from sources",
+              "partial": "⚠️ Partly answered",
+              "refused": "🚫 Not in my sources"}
+    st.caption(badges.get(out["status"], out["status"]))
+    show_text(out["answer"])
+
+    facts_by_id = {f["id"]: f for f in out["facts"]}
+    for kid in out["used_ids"]:
+        st.caption(f"📄 Source: **{kid}** · {facts_by_id[kid]['source']}")
+
+    if out["mode"] == "fallback":
+        st.warning("AI is unavailable right now, so this shows the closest fact directly.")
+        if out.get("error"):
+            st.caption(f"Technical detail: {out['error']}")
+
+    with st.expander("🔍 Why this answer?"):        
+        if out.get("model"):
+            st.caption(f"Answer written by: {out['model']}")
+        for err in out.get("errors", []):
+            st.caption(f"⚠️ Tried first: {err[:150]}")
+        st.write("Facts found by the AI search, most related first:")
+        for f in out["facts"]:
+            used = " ← used" if f["id"] in out["used_ids"] else ""
+            st.write(f"**{f['id']}** · score {f['score']:.2f}{used}")
+            show_text(f["text"])
 
 # ---------- Pages ----------
 def welcome_page():
@@ -96,18 +145,30 @@ def assistant_page():
         f"Your {role} track has **{n_scenarios}** practice scenarios "
         f"and **{n_milestones}** learning milestones."
     )
+    if client is None:
+        st.warning("No Gemini API key found. Answers will use the fallback mode.")
 
-    st.divider()
-    st.subheader("Search the knowledge base (test version)")
-    question = st.text_input("Type a question in Arabic or English")
-    method = st.radio("Search method", list(retrievers), horizontal=True)
+    # Show the conversation so far
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]):
+            if m["role"] == "user":
+                show_text(m["content"])
+            else:
+                show_answer(m["content"])
+
+    # New question
+    question = st.chat_input("Ask about Dada Group (Arabic or English)...")
     if question:
-        results = retrievers[method].search(question)
-        for r in results:
-            with st.container(border=True):
-                st.markdown(f"**{r['id']}** · score {r['score']:.2f} · {r['source']}")
-                st.write(r["text"])
-                st.progress(min(r["score"], 1.0))
+        st.session_state.messages.append({"role": "user", "content": question})
+        with st.spinner("Looking in the knowledge base..."):
+            out = answer_question(question, role, retrievers["AI (meaning)"],
+                                  data["kb"], client)
+        st.session_state.messages.append({"role": "assistant", "content": out})
+        st.rerun()
+
+    if st.session_state.messages and st.button("🗑️ Clear chat"):
+        st.session_state.messages = []
+        st.rerun()
 
 def scenarios_page():
     st.header("🎭 Practice scenarios")
