@@ -8,6 +8,10 @@ from qa import answer_question, get_client
 from scenarios import evaluate_response
 
 st.set_page_config(page_title="Dada Group Academy", page_icon="🎓", layout="wide")
+st.markdown(
+    "<style>textarea, input[type='text'] {unicode-bidi: plaintext; text-align: start;}</style>",
+    unsafe_allow_html=True,
+)
 
 data = load_all()
 
@@ -109,7 +113,7 @@ def show_answer(out):
 def show_feedback(fb, sc):
     """Show the feedback for one scenario response."""
     score = int(fb.get("score", 0))
-    st.subheader(f"Feedback: {'⭐' * score}{'☆' * (5 - score)} ({score}/5)")
+    st.subheader(f"Feedback: {'★' * score}{'☆' * (5 - score)} ({score}/5)")
 
     if fb["mode"] == "fallback":
         st.warning("AI feedback is unavailable, so this is a rough comparison "
