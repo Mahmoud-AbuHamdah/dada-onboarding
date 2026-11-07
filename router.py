@@ -14,7 +14,7 @@ SCENARIO_WORDS = ["عميل", "زبون", "موقف", "سيناريو",
                   "customer", "client", "scenario", "practice", "practise"]
 
 MILESTONES = [
-    ("Days 1-7", r"1\s*-\s*7|الاسبوع الاول|اول اسبوع|first week|week 1"),
+    ("Days 1-7", r"\b1\s*-?\s*7\b|الاسبوع الاول|اول اسبوع|first week|week 1"),
     ("Day 30", r"\b30\b|ثلاثين"),
     ("Day 60", r"\b60\b|ستين"),
     ("Day 90", r"\b90\b|تسعين"),
