@@ -61,7 +61,24 @@ FEEDBACK_TESTS = [
 ]
 
 CONTACT = re.compile(r"\d{6,}|@|\+\d")   # phone numbers, emails
+ARABIC = re.compile(r"[\u0600-\u06FF]")
 
+# Words an answer must contain, beyond citing the right IDs
+MUST_CONTAIN = {
+    "T04": ["تقييم"],   # jury expects the 30/60 reviews to be mentioned
+    "F08": ["تقييم"],
+}
+
+
+def quality_problems(tid, text_in, text_out):
+    """Content checks the status/ID rules can't see."""
+    problems = []
+    if not ARABIC.search(text_in) and ARABIC.search(text_out):
+        problems.append("replied in Arabic to an English input")
+    for word in MUST_CONTAIN.get(tid, []):
+        if word not in text_out:
+            problems.append(f"missing '{word}'")
+    return problems
 
 def judge_question(expect, ids, out):
     used, status = set(out["used_ids"]), out["status"]
@@ -95,13 +112,18 @@ def main():
     for n, (tid, q, expect, ids) in enumerate(qa_tests, 1):
         print(f"[{n}/{len(qa_tests)}] {tid}: {q}")
         out = answer_question(q, ROLE, retriever, data["kb"], client)
+        result = judge_question(expect, ids, out)
+        problems = quality_problems(tid, q, out["answer"])
+        if problems and result == "PASS":
+            result = "FAIL"
         rows.append({
             "test_id": tid, "type": "question", "input": q,
             "expected": f"{expect} {' '.join(ids)}".strip(),
             "got": f"{out['status']} {' '.join(out['used_ids'])}".strip(),
             "response": out["answer"],
             "model": out.get("model") or out["mode"],
-            "result": judge_question(expect, ids, out),
+            "result": result,
+            "note": "; ".join(problems),
         })
         time.sleep(PAUSE)
 
@@ -121,6 +143,7 @@ def main():
             "expected": f"{expect} {target or ''}".strip(),
             "got": f"{got} {detail}".strip(),
             "response": "", "model": "rules", "result": "PASS" if ok else "FAIL",
+            "note": "known limitation" if tid in ("I04", "I05") else "",
         })
 
     # 3. Feedback tests
@@ -129,13 +152,17 @@ def main():
         sc = data["scenarios"][data["scenarios"]["id"] == sid].iloc[0]
         fb = evaluate_response(sc, resp, data["kb"], client, model)
         score = int(fb.get("score", 0))
+        text_out = f"{fb.get('strengths', '')} {fb.get('improve', '')}"
+        problems = quality_problems(tid, resp, text_out)
+        result = "PASS" if lo <= score <= hi and not problems else "FAIL"
         rows.append({
             "test_id": tid, "type": "feedback", "input": resp,
             "expected": f"score {lo}-{hi}, value {sc['company_value']}",
             "got": f"score {score}, value {fb['value']['name_en']}",
             "response": f"{fb.get('strengths', '')} | {fb.get('improve', '')}",
             "model": fb.get("model") or fb["mode"],
-            "result": "PASS" if lo <= score <= hi else "FAIL",
+            "result": result,
+            "note": "; ".join(problems),
         })
         time.sleep(PAUSE)
 
@@ -157,7 +184,8 @@ def main():
         print(f"  {result}: {n}")
     for r in rows:
         if r["result"] != "PASS":
-            print(f"  {r['result']}  {r['test_id']}: expected [{r['expected']}], got [{r['got']}]")
+            print(f"  {r['result']}  {r['test_id']}: expected [{r['expected']}], "
+                  f"got [{r['got']}] {r['note']}")
     print(f"\nSaved: {path}")
 
 

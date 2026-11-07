@@ -1,6 +1,6 @@
 import json
 import os
-
+import re
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -17,6 +17,12 @@ REFUSAL = (
     "لا تتوفر لدي هذه المعلومة في المصادر المتاحة. يُرجى التأكد من قسم الموارد البشرية.\n\n"
     "I don't have this information in my sources. Please check with HR."
 )
+ARABIC = re.compile(r"[\u0600-\u06FF]")
+
+
+def answer_language(text):
+    """Arabic if the text contains Arabic letters, otherwise English."""
+    return "Arabic" if ARABIC.search(text) else "English"
 
 SYSTEM_PROMPT = """You are the learning assistant of "Dada Group Academy", helping new employees during their first 90 days.
 
@@ -26,9 +32,10 @@ RULES:
 3. If the question asks for a specific detail (a number, a name, a date, a contact) that the FACTS do not give, but the FACTS contain closely related useful information, set status to "partial": give the related information, then clearly say that the specific detail is not in your sources. Example: asked "How many annual leave days do I get?" with a fact about how to request leave, explain how to request leave and say the number of days is not available.
 4. If the FACTS do not answer the question, set status to "refused" and say politely that this information is not in your sources and the employee should check with HR. Never guess.
 5. Put the IDs of the facts you actually used in used_ids. Use only IDs that appear in the FACTS.
-6. Reply in the same language as the QUESTION (Arabic or English).
+6. Write the answer in the ANSWER LANGUAGE given, even though the FACTS are in Arabic. Translate the facts faithfully if needed.
 7. You do not make employment decisions and you do not replace HR procedures. If a fact applies only to certain roles, say so, and never assume it applies to this employee.
-8. Keep the answer short: 1 to 3 sentences, or a short list.
+8. Keep every condition, exception or role limitation that a fact states (for example who a rule applies to, or when something happens). Do not shorten it away.
+9. Keep the answer short: 1 to 3 sentences, or a short list.
 
 Return JSON only, in this format:
 {"status": "answered" or "partial" or "refused", "answer": "...", "used_ids": ["K01"]}
@@ -102,7 +109,8 @@ def answer_question(question, role, retriever, kb, client):
 
         # 3. Ask the AI: try each model in order until one works
     facts_text = "\n".join(f"[{f['id']}] {f['text']}" for f in facts)
-    prompt = f"Employee training track: {role}\n\nFACTS:\n{facts_text}\n\nQUESTION:\n{question}"
+    prompt = (f"Employee training track: {role}\n\nFACTS:\n{facts_text}\n\n"
+              f"ANSWER LANGUAGE: {answer_language(question)}\n\nQUESTION:\n{question}")
 
     out, model, errors = call_gemini(client, SYSTEM_PROMPT, prompt)
     if out is None:                    # every model failed

@@ -1,4 +1,4 @@
-from qa import call_gemini
+from qa import answer_language, call_gemini
 
 FEEDBACK_PROMPT = """You are a friendly onboarding coach at "Dada Group Academy". A new employee is practising a FICTIONAL workplace scenario.
 
@@ -10,7 +10,7 @@ RULES:
 3. Connect your feedback explicitly to the company value given.
 4. Judge only the response. Do not invent company policies, product specifications, prices or contacts.
 5. This is practice only, not a performance evaluation.
-6. Reply in the same language as the employee's response (Arabic or English).
+6. Write all feedback in the FEEDBACK LANGUAGE given. Do not comment on which language the employee chose to use.
 7. Score from 1 to 5: 5 = covers all key points of the suggested response; 3 = covers some; 1 = misses them, or does something harmful such as inventing information or hiding a problem.
 
 Return JSON only:
@@ -36,7 +36,8 @@ def evaluate_response(scenario, response_text, kb, client, model):
             f"SCENARIO: {scenario['scenario_ar']}\n"
             f"VALUE: {value['name_en']} ({value['name_ar']})\n"
             f"SUGGESTED GOOD RESPONSE: {scenario['suggested_good_response_ar']}\n"
-            f"EMPLOYEE RESPONSE: {response_text}"
+            f"EMPLOYEE RESPONSE: {response_text}\n"
+            f"FEEDBACK LANGUAGE: {answer_language(response_text)}"
         )
         out, used_model, errors = call_gemini(client, FEEDBACK_PROMPT, prompt)
         if out is not None and "score" in out:

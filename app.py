@@ -8,6 +8,8 @@ from qa import answer_question, get_client
 from scenarios import evaluate_response
 from progress import SUGGESTIONS, milestone_key, get_activities, completion_percent
 from router import detect_intent, mentioned_role, pick_scenario
+import glob
+import os
 
 st.set_page_config(page_title="Dada Group Academy", page_icon="🎓", layout="wide")
 st.markdown(
@@ -482,6 +484,31 @@ def data_page():
             row[f"{name} score"] = round(top["score"], 2)
         rows.append(row)
     st.dataframe(pd.DataFrame(rows), hide_index=True)
+    st.divider()
+    st.subheader("🧪 Automatic test results")
+    files = sorted(glob.glob("results/test_results_*.csv"))
+    if not files:
+        st.info("No test results yet. Run `python run_tests.py` in the terminal.")
+    else:
+        latest = files[-1]                     # names contain date and time
+        results = pd.read_csv(latest, encoding="utf-8-sig").fillna("")
+        n_pass = (results["result"] == "PASS").sum()
+        st.write(f"Latest run: `{os.path.basename(latest)}` · "
+                 f"**{n_pass} of {len(results)}** tests passed")
+
+        by_type = results.groupby("type")["result"].apply(
+            lambda s: f"{(s == 'PASS').sum()} of {len(s)}")
+        st.dataframe(by_type.rename("passed"))
+
+        failed = results[results["result"] != "PASS"]
+        if len(failed):
+            st.warning(f"{len(failed)} tests did not pass:")
+            st.dataframe(failed[["test_id", "input", "expected", "got", "result"]],
+                         hide_index=True)
+            st.caption("I04 and I05 are known limitations of the keyword routing.")
+
+        with st.expander("All test results"):
+            st.dataframe(results, hide_index=True)
 
 
 # ---------- Main flow ----------
