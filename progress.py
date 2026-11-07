@@ -35,7 +35,7 @@ def get_activities(data, role, state):
     items.append({
         "type": "Quiz",
         "name": "Knowledge quiz",
-        "done": state["quiz_score"] is not None,
+        "done": role in state["quiz_score"],
     })
     return items
 

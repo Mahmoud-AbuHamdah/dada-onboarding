@@ -44,8 +44,8 @@ DEFAULTS = {
     "feedback": {},             # scenario id -> feedback
     "done_scenarios": set(),    # scenario ids completed
     "done_milestones": set(),   # "Sales:Day 30", ...
-    "quiz_score": None,         # None = quiz not taken yet
-    "quiz_answers": {},         # quiz id -> chosen option
+        "quiz_score": {},           # role -> score (missing = not taken yet)
+    "quiz_answers": {},         # role -> {quiz id: chosen option}
 }
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
@@ -243,6 +243,14 @@ def scenarios_page():
         show_feedback(fb, sc)
 
 
+def toggle_milestone(key):
+    """Called when a milestone checkbox is clicked."""
+    if key in st.session_state.done_milestones:
+        st.session_state.done_milestones.discard(key)
+    else:
+        st.session_state.done_milestones.add(key)
+
+
 def plan_page():
     st.header("🗓️ Suggested learning plan")
     st.info("This is a suggested learning plan for this competition, "
@@ -255,19 +263,17 @@ def plan_page():
     plan = data["plan"][data["plan"]["department"] == role]
 
     for _, r in plan.iterrows():
-        key = milestone_key(role, r["milestone"])
+        key = milestone_key(role, r["milestone"])      # e.g. "Delivery:Day 30"
         done = key in st.session_state.done_milestones
+        cb_key = f"cb_{key}"                            # unique per role and milestone
+        st.session_state[cb_key] = done                 # tick matches the saved state
+
         with st.container(border=True):
             st.markdown(f"### {'✅' if done else '⬜'} {r['milestone']}")
             show_text(r["learning_goal_ar"])
             st.caption(f"Suggested activity: {SUGGESTIONS.get(r['milestone'], '')}")
-            checked = st.checkbox(f"Mark {r['milestone']} as done", value=done)
-            if checked and not done:
-                st.session_state.done_milestones.add(key)
-                st.rerun()
-            if not checked and done:
-                st.session_state.done_milestones.discard(key)
-                st.rerun()
+            st.checkbox(f"Mark {r['milestone']} as done", key=cb_key,
+                        on_change=toggle_milestone, args=(key,))
 
     st.divider()
     quiz_section()
@@ -276,9 +282,10 @@ def plan_page():
 def quiz_section():
     st.subheader("📝 Knowledge quiz")
     st.caption("A short practice quiz based on the knowledge base. Not an evaluation.")
+    role = st.session_state.role
     quiz = data["quiz"]
 
-    with st.form("quiz_form"):
+    with st.form(f"quiz_form_{role}"):
         answers = {}
         for _, q in quiz.iterrows():
             st.markdown(f"**{q['id']}**")
@@ -288,7 +295,7 @@ def quiz_section():
                 ["A", "B", "C"],
                 format_func=lambda o, q=q: q[f"option_{o.lower()}"],
                 index=None,
-                key=f"quiz_{q['id']}",
+                key=f"quiz_{role}_{q['id']}",
                 label_visibility="collapsed",
             )
         submitted = st.form_submit_button("Submit quiz", type="primary")
@@ -297,20 +304,20 @@ def quiz_section():
         if None in answers.values():
             st.warning("Please answer every question before submitting.")
         else:
-            st.session_state.quiz_answers = answers
-            st.session_state.quiz_score = sum(
+            st.session_state.quiz_answers[role] = answers
+            st.session_state.quiz_score[role] = sum(
                 answers[q["id"]] == q["correct_option"] for _, q in quiz.iterrows()
             )
 
-    if st.session_state.quiz_score is not None:
-        st.success(f"Your score: {st.session_state.quiz_score} / {len(quiz)}")
+    if role in st.session_state.quiz_score:
+        st.success(f"Your score: {st.session_state.quiz_score[role]} / {len(quiz)}")
+        given_all = st.session_state.quiz_answers[role]
         for _, q in quiz.iterrows():
-            given = st.session_state.quiz_answers.get(q["id"])
+            given = given_all.get(q["id"])
             correct_text = q[f"option_{q['correct_option'].lower()}"]
             mark = "✅" if given == q["correct_option"] else "❌"
             st.write(f"{mark} **{q['id']}** · correct answer: {correct_text} "
                      f"· source {q['source_knowledge_id']}")
-
 
 def progress_page():
     st.header("📊 My progress")
@@ -344,8 +351,8 @@ def progress_page():
     lines = [f"Dada Group Academy - learning summary ({role} track)",
              f"Completion: {pct}% ({n_done} of {len(items)} activities)", ""]
     lines += [f"[{'x' if i['done'] else ' '}] {i['type']}: {i['name']}" for i in items]
-    if st.session_state.quiz_score is not None:
-        lines.append(f"\nQuiz score: {st.session_state.quiz_score}/{len(data['quiz'])}")
+    if role in st.session_state.quiz_score:
+        lines.append(f"\nQuiz score: {st.session_state.quiz_score[role]}/{len(data['quiz'])}")
     for sid, s in role_scores.items():
         lines.append(f"Scenario {sid} practice score: {s}/5")
     lines.append("\nThis summary is for learning only and is not an employment evaluation.")
