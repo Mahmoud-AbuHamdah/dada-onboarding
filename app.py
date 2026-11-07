@@ -6,6 +6,7 @@ import html
 import re
 from qa import answer_question, get_client
 from scenarios import evaluate_response
+from progress import SUGGESTIONS, milestone_key, get_activities, completion_percent
 
 st.set_page_config(page_title="Dada Group Academy", page_icon="🎓", layout="wide")
 st.markdown(
@@ -35,18 +36,20 @@ def get_llm_client():
 
 client = get_llm_client()
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "feedback" not in st.session_state:
-    st.session_state.feedback = {}          # scenario id -> feedback
-if "done_scenarios" not in st.session_state:
-    st.session_state.done_scenarios = set() # scenario ids completed    
-
 # ---------- Remembered between reruns ----------
-if "role" not in st.session_state:
-    st.session_state.role = None
-if "name" not in st.session_state:
-    st.session_state.name = ""
+DEFAULTS = {
+    "role": None,               # Sales or Delivery
+    "name": "",                 # optional first name
+    "messages": [],             # chat history
+    "feedback": {},             # scenario id -> feedback
+    "done_scenarios": set(),    # scenario ids completed
+    "done_milestones": set(),   # "Sales:Day 30", ...
+    "quiz_score": None,         # None = quiz not taken yet
+    "quiz_answers": {},         # quiz id -> chosen option
+}
+for key, value in DEFAULTS.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
 # ---------- Fixed text ----------
 ROLES = {
@@ -242,12 +245,112 @@ def scenarios_page():
 
 def plan_page():
     st.header("🗓️ Suggested learning plan")
-    st.write("Coming in Step 8.")
+    st.info("This is a suggested learning plan for this competition, "
+            "not an official evaluation schedule.")
+    st.caption("Probation reviews are a separate HR process: according to K14, the "
+               "reviews at the end of month 1 and 2 apply only to administrative, "
+               "supervisory and non-operational roles.")
+
+    role = st.session_state.role
+    plan = data["plan"][data["plan"]["department"] == role]
+
+    for _, r in plan.iterrows():
+        key = milestone_key(role, r["milestone"])
+        done = key in st.session_state.done_milestones
+        with st.container(border=True):
+            st.markdown(f"### {'✅' if done else '⬜'} {r['milestone']}")
+            show_text(r["learning_goal_ar"])
+            st.caption(f"Suggested activity: {SUGGESTIONS.get(r['milestone'], '')}")
+            checked = st.checkbox(f"Mark {r['milestone']} as done", value=done)
+            if checked and not done:
+                st.session_state.done_milestones.add(key)
+                st.rerun()
+            if not checked and done:
+                st.session_state.done_milestones.discard(key)
+                st.rerun()
+
+    st.divider()
+    quiz_section()
+
+
+def quiz_section():
+    st.subheader("📝 Knowledge quiz")
+    st.caption("A short practice quiz based on the knowledge base. Not an evaluation.")
+    quiz = data["quiz"]
+
+    with st.form("quiz_form"):
+        answers = {}
+        for _, q in quiz.iterrows():
+            st.markdown(f"**{q['id']}**")
+            show_text(q["question_ar"])
+            answers[q["id"]] = st.radio(
+                "Your answer",
+                ["A", "B", "C"],
+                format_func=lambda o, q=q: q[f"option_{o.lower()}"],
+                index=None,
+                key=f"quiz_{q['id']}",
+                label_visibility="collapsed",
+            )
+        submitted = st.form_submit_button("Submit quiz", type="primary")
+
+    if submitted:
+        if None in answers.values():
+            st.warning("Please answer every question before submitting.")
+        else:
+            st.session_state.quiz_answers = answers
+            st.session_state.quiz_score = sum(
+                answers[q["id"]] == q["correct_option"] for _, q in quiz.iterrows()
+            )
+
+    if st.session_state.quiz_score is not None:
+        st.success(f"Your score: {st.session_state.quiz_score} / {len(quiz)}")
+        for _, q in quiz.iterrows():
+            given = st.session_state.quiz_answers.get(q["id"])
+            correct_text = q[f"option_{q['correct_option'].lower()}"]
+            mark = "✅" if given == q["correct_option"] else "❌"
+            st.write(f"{mark} **{q['id']}** · correct answer: {correct_text} "
+                     f"· source {q['source_knowledge_id']}")
 
 
 def progress_page():
     st.header("📊 My progress")
-    st.write("Coming in Step 8.")
+    role = st.session_state.role
+    items = get_activities(data, role, st.session_state)
+    pct = completion_percent(items)
+    n_done = sum(i["done"] for i in items)
+
+    st.metric("Completion", f"{pct}%", help=f"{n_done} of {len(items)} activities done")
+    st.progress(pct / 100)
+
+    st.subheader("Activities")
+    table = pd.DataFrame(
+        [{"Type": i["type"], "Activity": i["name"], "Done": "✅" if i["done"] else "⬜"}
+         for i in items]
+    )
+    st.dataframe(table, hide_index=True, use_container_width=True)
+
+    # Scenario scores
+    scores = {sid: fb["score"] for sid, fb in st.session_state.feedback.items()}
+    role_ids = set(data["scenarios"].loc[data["scenarios"]["department"] == role, "id"])
+    role_scores = {sid: s for sid, s in scores.items() if sid in role_ids}
+    if role_scores:
+        st.subheader("Practice scores")
+        for sid, s in role_scores.items():
+            st.write(f"**{sid}:** {s}/5")
+
+    # Day 90: summary for human review
+    st.subheader("Learning summary")
+    st.caption("For a human review conversation only. Not a performance evaluation.")
+    lines = [f"Dada Group Academy - learning summary ({role} track)",
+             f"Completion: {pct}% ({n_done} of {len(items)} activities)", ""]
+    lines += [f"[{'x' if i['done'] else ' '}] {i['type']}: {i['name']}" for i in items]
+    if st.session_state.quiz_score is not None:
+        lines.append(f"\nQuiz score: {st.session_state.quiz_score}/{len(data['quiz'])}")
+    for sid, s in role_scores.items():
+        lines.append(f"Scenario {sid} practice score: {s}/5")
+    lines.append("\nThis summary is for learning only and is not an employment evaluation.")
+    st.download_button("⬇️ Download summary", "\n".join(lines),
+                       file_name="learning_summary.txt")
 
 
 def data_page():
@@ -321,6 +424,8 @@ else:
         if st.button("Change track"):
             st.session_state.role = None
             st.rerun()
+        sidebar_pct = completion_percent(get_activities(data, role, st.session_state))
+        st.progress(sidebar_pct / 100, text=f"Progress: {sidebar_pct}%")
 
         st.divider()
         page = st.radio(
