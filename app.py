@@ -7,6 +7,7 @@ import re
 from qa import answer_question, get_client
 from scenarios import evaluate_response
 from progress import SUGGESTIONS, milestone_key, get_activities, completion_percent
+from router import detect_intent, mentioned_role, pick_scenario
 
 st.set_page_config(page_title="Dada Group Academy", page_icon="🎓", layout="wide")
 st.markdown(
@@ -47,8 +48,9 @@ DEFAULTS = {
     "feedback": {},             # scenario id -> feedback
     "done_scenarios": set(),    # scenario ids completed
     "done_milestones": set(),   # "Sales:Day 30", ...
-        "quiz_score": {},           # role -> score (missing = not taken yet)
+    "quiz_score": {},           # role -> score (missing = not taken yet)
     "quiz_answers": {},         # role -> {quiz id: chosen option}
+    "pending_scenario": None,   # scenario id waiting for the user's response
 }
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
@@ -141,6 +143,58 @@ def show_feedback(fb, sc):
         if fb.get("model"):
             st.caption(f"Feedback written by: {fb['model']}")
 
+def scenario_by_id(sid):
+    return data["scenarios"][data["scenarios"]["id"] == sid].iloc[0]
+
+def handle_message(message, role):
+    """Decide what to do with a chat message. Returns the assistant's reply."""
+
+    # 1. A scenario is waiting: this message is the user's response
+    if st.session_state.pending_scenario:
+        sid = st.session_state.pending_scenario
+        st.session_state.pending_scenario = None
+        if message.strip().lower() in ("إلغاء", "الغاء", "cancel"):
+            return {"kind": "text", "content": ["تم إلغاء الموقف.", "Scenario cancelled."]}
+        sc = scenario_by_id(sid)
+        fb = evaluate_response(sc, message, data["kb"], client, get_model())
+        st.session_state.feedback[sid] = fb
+        st.session_state.done_scenarios.add(sid)
+        return {"kind": "feedback", "content": fb, "scenario_id": sid}
+
+    intent = detect_intent(message)
+
+    # 2. Progress update
+    if intent["intent"] == "progress":
+        ms = intent["milestone"]
+        if ms is None:
+            return {"kind": "text", "content": [
+                "أي مرحلة أكملت؟ الأيام 1-7، اليوم 30، اليوم 60 أو اليوم 90.",
+                "Which milestone did you complete: Days 1-7, Day 30, Day 60 or Day 90?",
+            ]}
+        st.session_state.done_milestones.add(milestone_key(role, ms))
+        pct = completion_percent(get_activities(data, role, st.session_state))
+        return {"kind": "text", "content": [
+            f"✅ تم تسجيل إنجاز {ms} في مسار {role}. نسبة التقدم الآن {pct}%.",
+            f"✅ Marked {ms} as done for the {role} track. Your progress is now {pct}%.",
+        ]}
+
+    # 3. Start a scenario
+    if intent["intent"] == "scenario":
+        sc_role = mentioned_role(message) or role
+        options = data["scenarios"][data["scenarios"]["department"] == sc_role]
+        sc = pick_scenario(message, options, get_model())
+        st.session_state.pending_scenario = sc["id"]
+        return {"kind": "text", "content": [
+            f"🎭 Practice scenario {sc['id']} · {sc_role} · value: {sc['company_value']}",
+            sc["scenario_ar"],
+            "كيف سترد؟ اكتب ردك في رسالتك التالية، أو اكتب «إلغاء».",
+            "How would you respond? Type your answer in your next message, or type 'cancel'.",
+        ]}
+
+    # 4. A normal question
+    out = answer_question(message, role, retrievers["AI (meaning)"], data["kb"], client)
+    return {"kind": "answer", "content": out}
+
 # ---------- Pages ----------
 def welcome_page():
     st.title("🎓 Dada Group Academy")
@@ -185,29 +239,39 @@ def assistant_page():
         f"Your {role} track has **{n_scenarios}** practice scenarios "
         f"and **{n_milestones}** learning milestones."
     )
+    st.caption("Try: كيف أقدم طلب إجازة؟ · العميل غاضب بسبب تأخر التسليم · أكملت نشاط اليوم 30")
     if client is None:
         st.warning("No Gemini API key found. Answers will use the fallback mode.")
 
     # Show the conversation so far
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
-            if m["role"] == "user":
-                show_text(m["content"])
-            else:
+            kind = m.get("kind", "text")
+            if kind == "answer":
                 show_answer(m["content"])
+            elif kind == "feedback":
+                show_feedback(m["content"], scenario_by_id(m["scenario_id"]))
+            elif isinstance(m["content"], list):
+                for paragraph in m["content"]:
+                    show_text(paragraph)
+            else:
+                show_text(m["content"])
 
-    # New question
-    question = st.chat_input("Ask about Dada Group (Arabic or English)...")
-    if question:
-        st.session_state.messages.append({"role": "user", "content": question})
-        with st.spinner("Looking in the knowledge base..."):
-            out = answer_question(question, role, retrievers["AI (meaning)"],
-                                  data["kb"], client)
-        st.session_state.messages.append({"role": "assistant", "content": out})
+    if st.session_state.pending_scenario:
+        st.info(f"🎭 Waiting for your response to scenario {st.session_state.pending_scenario}.")
+
+    # New message
+    message = st.chat_input("Ask a question, practise a situation, or report progress...")
+    if message:
+        st.session_state.messages.append({"role": "user", "kind": "text", "content": message})
+        with st.spinner("Thinking..."):
+            reply = handle_message(message, role)
+        st.session_state.messages.append({"role": "assistant", **reply})
         st.rerun()
 
     if st.session_state.messages and st.button("🗑️ Clear chat"):
         st.session_state.messages = []
+        st.session_state.pending_scenario = None
         st.rerun()
 
 def scenarios_page():
