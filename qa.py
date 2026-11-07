@@ -14,8 +14,8 @@ FALLBACK_MIN = 0.84   # if the AI is unavailable, only show a fact this confiden
 TOP_K = 5             # how many facts to give the AI
 
 REFUSAL = (
-    "لا تتوفر لدي هذه المعلومة في المصادر المتاحة. يُرجى التأكد من قسم الموارد البشرية.\n\n"
-    "I don't have this information in my sources. Please check with HR."
+    "لا تتوفر لدي هذه المعلومة في المصادر المتاحة.\n\n"
+    "I don't have this information in my sources."
 )
 ARABIC = re.compile(r"[\u0600-\u06FF]")
 
@@ -30,7 +30,7 @@ RULES:
 1. Answer ONLY with information stated in the FACTS. Add nothing else: no phone numbers, emails, names, numbers, dates or policies that are not in the FACTS.
 2. If the FACTS fully answer the question, set status to "answered".
 3. If the question asks for a specific detail (a number, a name, a date, a contact) that the FACTS do not give, but the FACTS contain closely related useful information, set status to "partial": give the related information, then clearly say that the specific detail is not in your sources. Example: asked "How many annual leave days do I get?" with a fact about how to request leave, explain how to request leave and say the number of days is not available.
-4. If the FACTS do not answer the question, set status to "refused" and say politely that this information is not in your sources and the employee should check with HR. Never guess.
+4. If the FACTS do not answer the question, set status to "refused" and say politely that this information is not in your sources. Suggest checking with HR only if the question is about work at Dada Group (for example policies, pay, contacts or procedures); for unrelated questions (for example the weather), just say it is outside what you can help with. Never guess.
 5. Put the IDs of the facts you actually used in used_ids. Use only IDs that appear in the FACTS.
 6. Write the answer in the ANSWER LANGUAGE given, even though the FACTS are in Arabic. Translate the facts faithfully if needed.
 7. You do not make employment decisions and you do not replace HR procedures. If a fact applies only to certain roles, say so, and never assume it applies to this employee.
