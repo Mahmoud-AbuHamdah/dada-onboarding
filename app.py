@@ -10,7 +10,10 @@ from progress import SUGGESTIONS, milestone_key, get_activities, completion_perc
 
 st.set_page_config(page_title="Dada Group Academy", page_icon="🎓", layout="wide")
 st.markdown(
-    "<style>textarea, input[type='text'] {unicode-bidi: plaintext; text-align: start;}</style>",
+    "<style>"
+    "textarea, input[type='text'] {unicode-bidi: plaintext; text-align: start;}"
+    ".st-key-quiz_box div[role='radiogroup'] {direction: rtl;}"
+    "</style>",
     unsafe_allow_html=True,
 )
 
@@ -269,7 +272,7 @@ def plan_page():
         st.session_state[cb_key] = done                 # tick matches the saved state
 
         with st.container(border=True):
-            st.markdown(f"### {'✅' if done else '⬜'} {r['milestone']}")
+            st.markdown(f"### {'✅' if done else '○'} {r['milestone']}")
             show_text(r["learning_goal_ar"])
             st.caption(f"Suggested activity: {SUGGESTIONS.get(r['milestone'], '')}")
             st.checkbox(f"Mark {r['milestone']} as done", key=cb_key,
@@ -285,7 +288,7 @@ def quiz_section():
     role = st.session_state.role
     quiz = data["quiz"]
 
-    with st.form(f"quiz_form_{role}"):
+    with st.container(key="quiz_box"), st.form(f"quiz_form_{role}"):
         answers = {}
         for _, q in quiz.iterrows():
             st.markdown(f"**{q['id']}**")
@@ -331,7 +334,7 @@ def progress_page():
 
     st.subheader("Activities")
     table = pd.DataFrame(
-        [{"Type": i["type"], "Activity": i["name"], "Done": "✅" if i["done"] else "⬜"}
+        [{"Type": i["type"], "Activity": i["name"], "Done": "✅" if i["done"] else "○"}
          for i in items]
     )
     st.dataframe(table, hide_index=True, use_container_width=True)
