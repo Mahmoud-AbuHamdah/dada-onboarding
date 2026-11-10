@@ -1,9 +1,10 @@
-SUGGESTIONS = {
-    "Days 1-7": "Ask the assistant about the company, its values and onboarding "
-                "(for example: ما قيم الشركة؟ or كيف أقدم طلب إجازة؟).",
-    "Day 30": "Take the knowledge quiz below and complete one practice scenario.",
-    "Day 60": "Practise your other scenarios and read the feedback.",
-    "Day 90": "Open My progress and download your learning summary for a human review.",
+"""Progress calculation. Only numbers here: the pages decide how to show them."""
+
+MILESTONE_AR = {
+    "Days 1-7": "الأيام من 1 إلى 7",
+    "Day 30": "اليوم 30",
+    "Day 60": "اليوم 60",
+    "Day 90": "اليوم 90",
 }
 
 
@@ -19,24 +20,21 @@ def get_activities(data, role, state):
     plan = data["plan"][data["plan"]["department"] == role]
     for _, r in plan.iterrows():
         items.append({
-            "type": "Milestone",
-            "name": r["milestone"],
+            "type": "milestone",
+            "milestone": r["milestone"],
             "done": milestone_key(role, r["milestone"]) in state["done_milestones"],
         })
 
     scenarios = data["scenarios"][data["scenarios"]["department"] == role]
     for _, r in scenarios.iterrows():
         items.append({
-            "type": "Scenario",
-            "name": f"{r['id']} · {r['company_value']}",
+            "type": "scenario",
+            "sid": r["id"],
+            "value": r["company_value"],
             "done": r["id"] in state["done_scenarios"],
         })
 
-    items.append({
-        "type": "Quiz",
-        "name": "Knowledge quiz",
-        "done": role in state["quiz_score"],
-    })
+    items.append({"type": "quiz", "done": role in state["quiz_score"]})
     return items
 
 

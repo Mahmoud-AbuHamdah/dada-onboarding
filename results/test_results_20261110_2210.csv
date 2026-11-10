@@ -1,0 +1,54 @@
+﻿test_id,type,input,expected,got,response,model,result,note
+T01,question,متى تأسست مجموعة الدادا؟,answer K01,answered K01,تأسست مجموعة الدادا عام 1991.,gemini-3.1-flash-lite,PASS,
+T02,question,ما قيم الشركة الخمس؟,answer K05 K06 K07 K08 K09,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,FAIL,
+T03,question,كيف أقدم طلب إجازة؟,answer K16,answered K16,يُقدَّم طلب الإجازة عبر نظام الموارد البشرية ويستلزم موافقة المدير المباشر قبل بدء الإجازة.,fallback,PASS,
+T04,question,كم فترة التجربة؟,answer K14,answered K14,فترة التجربة 90 يوماً، مع تقييمات في نهاية الشهر الأول والثاني للوظائف الإدارية والإشرافية وغير التشغيلية.,fallback,PASS,
+T05,question,ما رقم هاتف مدير الموارد البشرية؟,refuse,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,PASS,
+T09,question,هل يمكن أن تشارك معلومات سرية مع صديق؟,answer K17,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,FAIL,
+F01,question,متى تأسست المجموعة؟,answer K01,answered K01,تأسست مجموعة الدادا عام 1991.,fallback,PASS,
+F02,question,كم عدد المعارض وأين توجد؟,answer K02,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,FAIL,
+F03,question,ما رؤية المجموعة؟,answer K03,answered K03,رؤية المجموعة: نثري الحياة اليومية بمزيد من الراحة.,fallback,PASS,
+F04,question,ما قيم الشركة؟,answer K05 K06 K07 K08 K09,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,FAIL,
+F05,question,من المسؤول عن إجراءات تهيئة الموظف؟,answer K10,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,FAIL,
+F06,question,ماذا يحدث في اليوم الأول؟,answer K12,answered K12,في اليوم الأول يتم تعريف الموظف بالوصف الوظيفي وإجراءات الحضور والإجازات والسلوكيات العامة.,fallback,PASS,
+F07,question,متى تصل رسالة الترحيب؟,answer K13,answered K13,تُرسل رسالة ترحيب خلال الأيام الثلاثة الأولى للموظفين الذين لديهم بريد إلكتروني للعمل.,fallback,PASS,
+F08,question,ما مدة فترة التجربة؟,answer K14,answered K14,فترة التجربة هي 90 يوماً.,gemini-3.1-flash-lite,FAIL,missing 'تقييم'
+F09,question,كيف أقدم طلب إجازة؟,answer K16,answered K16,يُقدَّم طلب الإجازة عبر نظام الموارد البشرية، ويستلزم ذلك الحصول على موافقة المدير المباشر قبل بدء الإجازة.,gemini-3.1-flash-lite,PASS,
+F10,question,هل يمكنني مشاركة ملفات الشركة مع شخص خارجي؟,answer K17,answered K17,يجب المحافظة على سرية معلومات الشركة وعدم إفشائها دون تصريح.,gemini-3.1-flash-lite,PASS,
+F11,question,ما العلامات التجارية للشركة؟,answer K18,answered K18,العلامات التجارية المذكورة في العرض التعريفي هي: Beko وAriston وKärcher وDe’Longhi وElba وBraun وSona وSkyworth وAtlas وNara.,gemini-3.1-flash-lite,PASS,
+F12,question,ما رقم مدير الموارد البشرية؟,refuse,refused,هذه المعلومات غير متوفرة في مصادري، يرجى مراجعة قسم الموارد البشرية.,gemini-3.1-flash-lite,PASS,
+X01,question,ما هي رسالة الشركة؟,answer K04,answered K04,رسالة المجموعة: نقدم قيمة لعملائنا من خلال منتجات عالية الجودة وعلامات تجارية موثوقة وحلول تلبي احتياجاتهم وتثري تجربتهم.,fallback,PASS,
+X02,question,هل أحتاج أن أسجل حضوري؟,answer K15,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,FAIL,
+X03,question,ماذا يتم تجهيزه قبل أن أبدأ العمل؟,answer K11,answered K11,قبل مباشرة العمل يتم تجهيز احتياجات الموظف وفق طبيعة عمله، مثل البريد الإلكتروني والأجهزة والصلاحيات اللازمة.,gemini-3.1-flash-lite,PASS,
+X04,question,What is the company's vision?,answer K03,answered K03,The group's vision is to enrich daily life with more convenience.,gemini-3.1-flash-lite,PASS,
+X05,question,How do I request leave?,answer K16,answered K16,"You must submit your leave request through the HR system, which requires approval from your direct manager before the leave begins.",gemini-3.1-flash-lite,PASS,
+X06,question,كم يوم إجازة سنوية لي؟,partial K16,partial K16,يتم تقديم طلب الإجازة عبر نظام الموارد البشرية ويستلزم موافقة المدير المباشر قبل بدء الإجازة، ولكن عدد أيام الإجازة السنوية غير متوفر في مصادري. يرجى مراجعة الموارد البشرية للحصول على هذه المعلومة.,gemini-3.1-flash-lite,PASS,
+X07,question,كم راتبي؟,refuse,refused,هذه المعلومات غير متوفرة في مصادري، يرجى مراجعة قسم الموارد البشرية.,gemini-3.1-flash-lite,PASS,
+X08,question,ما الطقس اليوم؟,refuse,refused,هذه المعلومة خارج نطاق ما يمكنني مساعدتك به.,gemini-3.1-flash-lite,PASS,
+X09,question,من هو المدير العام؟,refuse,refused,هذه المعلومات غير متوفرة في مصادري، يرجى مراجعة الموارد البشرية.,gemini-3.1-flash-lite,PASS,
+X10,question,أين أركن سيارتي؟,refuse,refused,هذه المعلومات غير متوفرة في مصادري، يرجى مراجعة قسم الموارد البشرية.,gemini-3.1-flash-lite,PASS,
+T06,intent,أنا موظف مبيعات وعميل يسأل عن ميزة غير مؤكدة,scenario S02,scenario S02,,rules,PASS,
+T07,intent,أنا موظف توصيل والعميل غاضب بسبب التأخير,scenario S04,scenario S04,,rules,PASS,
+T08,intent,أكملت نشاط اليوم 30,progress Day 30,progress Day 30,,rules,PASS,
+I01,intent,أكملت الأيام 1-7,progress Days 1-7,progress Days 1-7,,rules,PASS,
+I02,intent,أكملت المرحلة,progress,progress,,rules,PASS,
+I03,intent,كيف أقدم طلب إجازة؟,question,question,,rules,PASS,
+I04,intent,هل يمكنني مشاركة ملفات مع عميل؟,question,scenario S03,,rules,FAIL,known limitation
+I05,intent,Who do I contact when I'm done with onboarding?,question,progress,,rules,FAIL,known limitation
+FB1,feedback,لا أعرف إذا كانت هذه الميزة موجودة، سأتحقق من المواصفات أو أسأل المسؤول ثم أرد على العميل.,"score 4-5, value Integrity","score 5, value Integrity",لقد قمت بعمل ممتاز في إظهار الشفافية والصدق مع العميل من خلال الاعتراف بعدم معرفتك للمعلومة بدلاً من تخمينها. | إجابتك كانت ممتازة ومباشرة، يمكنك فقط إضافة عبارة ترحيبية أو شكر للعميل على سؤاله لتعزيز تجربة الخدمة، مثل: 'سؤال جيد، سأتحقق من ذلك فوراً وأعود إليك بالرد'.,gemini-3.1-flash-lite,PASS,
+FB2,feedback,أقول له نعم، المنتج فيه هذه الميزة حتى يشتري.,"score 1-2, value Integrity","score 1, value Integrity", | يجب عليك دائماً تجنب تقديم معلومات غير دقيقة أو اختراع ميزات غير موجودة، وبدلاً من ذلك، قم بإبلاغ الزبون بأنك ستتحقق من المعلومة بدقة من المصادر الموثوقة أو من المسؤول قبل تأكيدها.,gemini-3.1-flash-lite,PASS,
+FB3,feedback,"I apologise, explain the confirmed new delivery time, and escalate to my supervisor if needed.","score 4-5, value Customer Centricity","score 5, value Customer Centricity","You clearly identified the essential steps of apologizing, providing accurate information, and knowing when to escalate. | While your response is excellent, ensure that in a real-world scenario, you also express empathy to acknowledge the customer's frustration before moving to the solution.",gemini-3.1-flash-lite,PASS,

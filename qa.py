@@ -34,7 +34,7 @@ RULES:
 5. Put the IDs of the facts you actually used in used_ids. Use only IDs that appear in the FACTS.
 6. Write the answer in the ANSWER LANGUAGE given, even though the FACTS are in Arabic. Translate the facts faithfully if needed.
 7. You do not make employment decisions and you do not replace HR procedures. If a fact applies only to certain roles, say so, and never assume it applies to this employee.
-8. Keep every condition, exception or role limitation that a fact states (for example who a rule applies to, or when something happens). Do not shorten it away.
+8. Keep every condition, exception or role limitation that a fact states (for example who a rule applies to, or when something happens). When the answer comes from one fact, include all of that fact, not only the first part.
 9. Keep the answer short: 1 to 3 sentences, or a short list.
 
 Return JSON only, in this format:
@@ -65,8 +65,15 @@ def gather_facts(question, retriever, kb):
     return facts
 
 
-def fallback(facts, error=None):
-    """Used when the AI can't be reached: show only a very confident fact."""
+def fallback(facts, error=None, value_ids=()):
+    """Used when the AI can't be reached: show only very confident facts."""
+    # A values question: the search already gathered all five value facts
+    values = [f for f in facts if f["id"] in value_ids]
+    if value_ids and facts[0]["id"] in value_ids and len(values) == len(value_ids):
+        return {"status": "answered", "answer": "\n".join(f["text"] for f in values),
+                "used_ids": [f["id"] for f in values],
+                "facts": facts, "mode": "fallback", "error": error}
+
     best = facts[0]
     if best["score"] >= FALLBACK_MIN:
         return {"status": "answered", "answer": best["text"], "used_ids": [best["id"]],
@@ -97,7 +104,7 @@ def call_gemini(client, system_prompt, prompt):
 def answer_question(question, role, retriever, kb, client):
     """The full pipeline: find facts, ask the AI, check its reply."""
     facts = gather_facts(question, retriever, kb)
-
+    value_ids = set(kb.loc[kb["topic"] == "Values", "id"])
     # 1. Completely unrelated question: refuse without calling the AI
     if facts[0]["score"] < FLOOR:
         return {"status": "refused", "answer": REFUSAL, "used_ids": [],
@@ -105,7 +112,7 @@ def answer_question(question, role, retriever, kb, client):
 
     # 2. No API key: use the fallback
     if client is None:
-        return fallback(facts, error="No API key found")
+        return fallback(facts, error="No API key found", value_ids=value_ids)
 
         # 3. Ask the AI: try each model in order until one works
     facts_text = "\n".join(f"[{f['id']}] {f['text']}" for f in facts)
@@ -114,7 +121,7 @@ def answer_question(question, role, retriever, kb, client):
 
     out, model, errors = call_gemini(client, SYSTEM_PROMPT, prompt)
     if out is None:                    # every model failed
-        return fallback(facts, error=" | ".join(errors))
+        return fallback(facts, error=" | ".join(errors), value_ids=value_ids)
     out["model"] = model
 
     # 4. Check the AI's reply: keep only IDs we actually gave it
