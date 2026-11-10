@@ -107,7 +107,7 @@ def main():
         ids = [i for i in str(r["expected_knowledge_ids"]).split(";") if i.startswith("K")]
         faq_qa.append((r["id"], r["employee_question_ar"], "answer" if ids else "refuse", ids))
 
-    # 1. Question tests
+        # 1. Question tests
     qa_tests = JURY_QA + faq_qa + EXTRA_QA
     for n, (tid, q, expect, ids) in enumerate(qa_tests, 1):
         print(f"[{n}/{len(qa_tests)}] {tid}: {q}")
@@ -123,7 +123,9 @@ def main():
             "response": out["answer"],
             "model": out.get("model") or out["mode"],
             "result": result,
-            "note": "; ".join(problems),
+            "note": "; ".join(problems + (
+                [f"fallback: {str(out.get('error', ''))[:100]}"] if out["mode"] == "fallback" else []
+            )),
         })
         time.sleep(PAUSE)
 

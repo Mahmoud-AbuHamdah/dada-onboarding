@@ -1,0 +1,74 @@
+﻿test_id,type,input,expected,got,response,model,result,note
+T01,question,متى تأسست مجموعة الدادا؟,answer K01,answered K01,تأسست مجموعة الدادا عام 1991.,fallback,PASS,
+T02,question,ما قيم الشركة الخمس؟,answer K05 K06 K07 K08 K09,answered K08 K06 K05 K07 K09,"محورية العميل من القيم المشتركة للمجموعة.
+فريق واحد من القيم المشتركة للمجموعة.
+النزاهة من القيم المشتركة للمجموعة.
+المثابرة من القيم المشتركة للمجموعة.
+المسؤولية الاجتماعية من القيم المشتركة للمجموعة.",fallback,PASS,
+T03,question,كيف أقدم طلب إجازة؟,answer K16,answered K16,يُقدَّم طلب الإجازة عبر نظام الموارد البشرية ويستلزم موافقة المدير المباشر قبل بدء الإجازة.,fallback,PASS,
+T04,question,كم فترة التجربة؟,answer K14,answered K14,فترة التجربة 90 يوماً، مع تقييمات في نهاية الشهر الأول والثاني للوظائف الإدارية والإشرافية وغير التشغيلية.,fallback,PASS,
+T05,question,ما رقم هاتف مدير الموارد البشرية؟,refuse,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,PASS,
+T09,question,هل يمكن أن تشارك معلومات سرية مع صديق؟,answer K17,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,FAIL,
+F01,question,متى تأسست المجموعة؟,answer K01,answered K01,تأسست مجموعة الدادا عام 1991.,fallback,PASS,
+F02,question,كم عدد المعارض وأين توجد؟,answer K02,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,FAIL,
+F03,question,ما رؤية المجموعة؟,answer K03,answered K03,رؤية المجموعة: نثري الحياة اليومية بمزيد من الراحة.,fallback,PASS,
+F04,question,ما قيم الشركة؟,answer K05 K06 K07 K08 K09,answered K06 K08 K05 K07 K09,"فريق واحد من القيم المشتركة للمجموعة.
+محورية العميل من القيم المشتركة للمجموعة.
+النزاهة من القيم المشتركة للمجموعة.
+المثابرة من القيم المشتركة للمجموعة.
+المسؤولية الاجتماعية من القيم المشتركة للمجموعة.",fallback,PASS,
+F05,question,من المسؤول عن إجراءات تهيئة الموظف؟,answer K10,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,FAIL,
+F06,question,ماذا يحدث في اليوم الأول؟,answer K12,answered K12,في اليوم الأول يتم تعريف الموظف بالوصف الوظيفي وإجراءات الحضور والإجازات والسلوكيات العامة.,fallback,PASS,
+F07,question,متى تصل رسالة الترحيب؟,answer K13,answered K13,تُرسل رسالة ترحيب خلال الأيام الثلاثة الأولى للموظفين الذين لديهم بريد إلكتروني للعمل.,fallback,PASS,
+F08,question,ما مدة فترة التجربة؟,answer K14,answered K14,فترة التجربة 90 يوماً، مع تقييمات في نهاية الشهر الأول والثاني للوظائف الإدارية والإشرافية وغير التشغيلية.,fallback,PASS,
+F09,question,كيف أقدم طلب إجازة؟,answer K16,answered K16,يُقدَّم طلب الإجازة عبر نظام الموارد البشرية ويستلزم موافقة المدير المباشر قبل بدء الإجازة.,fallback,PASS,
+F10,question,هل يمكنني مشاركة ملفات الشركة مع شخص خارجي؟,answer K17,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,FAIL,
+F11,question,ما العلامات التجارية للشركة؟,answer K18,answered K18,من العلامات التجارية المذكورة في العرض التعريفي: Beko وAriston وKärcher وDe’Longhi وElba وBraun وSona وSkyworth وAtlas وNara.,fallback,PASS,
+F12,question,ما رقم مدير الموارد البشرية؟,refuse,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,PASS,
+X01,question,ما هي رسالة الشركة؟,answer K04,answered K04,رسالة المجموعة: نقدم قيمة لعملائنا من خلال منتجات عالية الجودة وعلامات تجارية موثوقة وحلول تلبي احتياجاتهم وتثري تجربتهم.,fallback,PASS,
+X02,question,هل أحتاج أن أسجل حضوري؟,answer K15,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,FAIL,
+X03,question,ماذا يتم تجهيزه قبل أن أبدأ العمل؟,answer K11,answered K11,قبل مباشرة العمل يتم تجهيز احتياجات الموظف وفق طبيعة عمله، مثل البريد الإلكتروني والأجهزة والصلاحيات اللازمة.,fallback,PASS,
+X04,question,What is the company's vision?,answer K03,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,FAIL,replied in Arabic to an English input
+X05,question,How do I request leave?,answer K16,answered K16,يُقدَّم طلب الإجازة عبر نظام الموارد البشرية ويستلزم موافقة المدير المباشر قبل بدء الإجازة.,fallback,FAIL,replied in Arabic to an English input
+X06,question,كم يوم إجازة سنوية لي؟,partial K16,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,SAFE,
+X07,question,كم راتبي؟,refuse,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,PASS,
+X08,question,ما الطقس اليوم؟,refuse,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,PASS,
+X09,question,من هو المدير العام؟,refuse,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,PASS,
+X10,question,أين أركن سيارتي؟,refuse,refused,"لا تتوفر لدي هذه المعلومة في المصادر المتاحة.
+
+I don't have this information in my sources.",fallback,PASS,
+T06,intent,أنا موظف مبيعات وعميل يسأل عن ميزة غير مؤكدة,scenario S02,scenario S02,,rules,PASS,
+T07,intent,أنا موظف توصيل والعميل غاضب بسبب التأخير,scenario S04,scenario S04,,rules,PASS,
+T08,intent,أكملت نشاط اليوم 30,progress Day 30,progress Day 30,,rules,PASS,
+I01,intent,أكملت الأيام 1-7,progress Days 1-7,progress Days 1-7,,rules,PASS,
+I02,intent,أكملت المرحلة,progress,progress,,rules,PASS,
+I03,intent,كيف أقدم طلب إجازة؟,question,question,,rules,PASS,
+I04,intent,هل يمكنني مشاركة ملفات مع عميل؟,question,scenario S03,,rules,FAIL,known limitation
+I05,intent,Who do I contact when I'm done with onboarding?,question,progress,,rules,FAIL,known limitation
+FB1,feedback,لا أعرف إذا كانت هذه الميزة موجودة، سأتحقق من المواصفات أو أسأل المسؤول ثم أرد على العميل.,"score 4-5, value Integrity","score 4, value Integrity", | Compare your response with the suggested response below.,fallback,PASS,
+FB2,feedback,أقول له نعم، المنتج فيه هذه الميزة حتى يشتري.,"score 1-2, value Integrity","score 3, value Integrity", | Compare your response with the suggested response below.,fallback,FAIL,
+FB3,feedback,"I apologise, explain the confirmed new delivery time, and escalate to my supervisor if needed.","score 4-5, value Customer Centricity","score 4, value Customer Centricity", | Compare your response with the suggested response below.,fallback,PASS,
