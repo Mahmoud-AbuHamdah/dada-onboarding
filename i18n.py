@@ -83,7 +83,7 @@ TEXT = {
                         "ar": "رُدّ على موقف مع عميل واحصل على ملاحظات."},
     "qa_plan": {"en": "Open your plan", "ar": "افتح خطتك"},
     "qa_plan_sub": {"en": "Days 1-7, 30, 60 and 90, plus a quiz.",
-                    "ar": "الأيام 1-7 و30 و60 و90، مع اختبار قصير."},
+                    "ar": "الأيام من 1 إلى 7، و30 و60 و90، مع اختبار قصير."},
 
     # ---------- Assistant ----------
     "assistant_sub": {"en": "Ask about Dada Group, practise a situation, or report your progress.",
@@ -149,8 +149,21 @@ TEXT = {
     "answer_all": {"en": "Please answer every question before submitting.",
                    "ar": "يُرجى الإجابة عن جميع الأسئلة قبل الإرسال."},
     "your_score": {"en": "Your score: {score} / {total}", "ar": "نتيجتك: {score} من {total}"},
-    "correct_answer": {"en": "correct answer: {answer} · source {src}",
-                       "ar": "الإجابة الصحيحة: {answer} · المصدر {src}"},
+    "correct_label": {"en": "correct answer", "ar": "الإجابة الصحيحة"},
+    "source_word": {"en": "source", "ar": "المصدر"},
+
+    "all_correct": {"en": "All correct. Try a practice scenario next.",
+                    "ar": "كل الإجابات صحيحة. جرّب موقفاً تدريبياً بعد ذلك."},
+    "review_title": {"en": "Review what you missed", "ar": "راجع ما فاتك"},
+    "review_intro": {"en": "{n} to review. Each card shows the fact the answer comes from.",
+                     "ar": "{n} للمراجعة. تعرض كل بطاقة المعلومة التي تأتي منها الإجابة."},
+    "fact_label": {"en": "Source fact", "ar": "المعلومة المصدر"},
+    "ask_about": {"en": "Ask the assistant about this", "ar": "اسأل المساعد عن هذا"},
+    "practise_related": {"en": "Practise {sid} · {value}", "ar": "تدرّب على {sid} · {value}"},
+    "retry_btn": {"en": "Retry the {n} you missed", "ar": "أعد محاولة الأسئلة التي فاتتك ({n})"},
+    "retry_title": {"en": "Retry: only the questions you missed", "ar": "إعادة المحاولة: الأسئلة التي فاتتك فقط"},
+    "retry_submit": {"en": "Submit retry", "ar": "إرسال المحاولة"},
+    "improved": {"en": "You got {n} more right this time.", "ar": "أجبت عن {n} أسئلة إضافية بشكل صحيح هذه المرة."},
 
     # ---------- Progress ----------
     "progress_sub": {"en": "Activities in your {track} track.", "ar": "أنشطة مسار {track}."},

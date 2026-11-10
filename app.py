@@ -58,6 +58,9 @@ DEFAULTS = {
     "done_milestones": set(),   # "Sales:Day 30", ...
     "quiz_score": {},           # role -> score (missing = not taken yet)
     "quiz_answers": {},         # role -> {quiz id: chosen option}
+    "quiz_retry": {},           # role -> True while the retry form is open
+    "quiz_attempts": {},        # role -> number of retries started
+    "quiz_last_gain": {},       # role -> points gained in the last retry
     "pending_scenario": None,   # scenario id waiting for the user's response
 }
 for key, value in DEFAULTS.items():
@@ -147,7 +150,7 @@ def load_css():
 
     /* Typed text follows its own direction; quiz options right to left */
     textarea, input[type='text'] {unicode-bidi: plaintext; text-align: start;}
-    .st-key-quiz_box div[role='radiogroup'] {direction: rtl;}
+    .st-key-quiz_box div[role='radiogroup'], .st-key-quiz_box_retry div[role='radiogroup'] {direction: rtl;}
     """
     if is_ar():
         css += """
@@ -543,6 +546,7 @@ def quiz_section():
     role = st.session_state.role
     quiz = data["quiz"]
 
+    # 1. The full quiz
     with st.container(key="quiz_box"), st.form(f"quiz_form_{role}"):
         answers = {}
         for _, q in quiz.iterrows():
@@ -559,19 +563,105 @@ def quiz_section():
         if None in answers.values():
             st.warning(t("answer_all"))
         else:
-            st.session_state.quiz_answers[role] = answers
-            st.session_state.quiz_score[role] = sum(
-                answers[q["id"]] == q["correct_option"] for _, q in quiz.iterrows()
-            )
+            save_quiz_answers(role, answers)
+            st.session_state.quiz_retry[role] = False
 
-    if role in st.session_state.quiz_score:
-        st.success(t("your_score", score=st.session_state.quiz_score[role], total=len(quiz)))
-        given_all = st.session_state.quiz_answers[role]
-        for _, q in quiz.iterrows():
-            mark = "✅" if given_all.get(q["id"]) == q["correct_option"] else "❌"
-            correct_text = q[f"option_{q['correct_option'].lower()}"]
-            show_text(f"{mark} {q['id']} · "
-                      + t("correct_answer", answer=correct_text, src=q["source_knowledge_id"]))
+    if role not in st.session_state.quiz_score:
+        return
+
+    # 2. Score and results
+    given = st.session_state.quiz_answers[role]
+    missed = quiz[[given.get(q["id"]) != q["correct_option"] for _, q in quiz.iterrows()]]
+    score = st.session_state.quiz_score[role]
+    st.success(t("your_score", score=score, total=len(quiz)))
+    gain = st.session_state.quiz_last_gain.pop(role, None)
+    if gain:
+        st.info("📈 " + t("improved", n=gain))
+    direction = "rtl" if is_ar() else "ltr"
+    for _, q in quiz.iterrows():
+        mark = "✅" if given.get(q["id"]) == q["correct_option"] else "❌"
+        correct_text = html.escape(q[f"option_{q['correct_option'].lower()}"])
+        # <bdi> keeps the Arabic answer in its own direction inside an English line
+        st.markdown(
+            f'<div dir="{direction}" class="txt">{mark} <b>{q["id"]}</b> · '
+            f'{t("correct_label")}: <bdi>{correct_text}</bdi> · '
+            f'{t("source_word")} {q["source_knowledge_id"]}</div>',
+            unsafe_allow_html=True,
+        )
+
+    if missed.empty:
+        st.info("🎉 " + t("all_correct"))
+        return
+
+    # 3. Adaptive part: review each missed question
+    st.markdown(f"#### 🔁 {t('review_title')}")
+    st.caption(t("review_intro", n=len(missed)))
+    for _, q in missed.iterrows():
+        fact = data["kb"][data["kb"]["id"] == q["source_knowledge_id"]].iloc[0]
+        with st.container(key=f"card_review_{role}_{q['id']}"):
+            show_text(f"{q['id']} · {q['question_ar']}")
+            st.caption(f"📄 {t('fact_label')} {fact['id']} · {fact['source_document']}, p. {fact['source_page']}")
+            show_text(fact["answer_ar"])
+            cols = st.columns(2)
+            if cols[0].button(t("ask_about"), key=f"ask_{role}_{q['id']}",
+                              icon=":material/chat:", width="stretch"):
+                st.session_state.queued = q["question_ar"]
+                st.switch_page(PAGES["assistant"])
+            related = related_scenario(fact, role)
+            if related is not None:
+                cols[1].page_link(PAGES["scenarios"], icon=":material/theater_comedy:",
+                                  label=t("practise_related", sid=related["id"],
+                                          value=value_name(value_info(data["kb"], related["company_value"]))))
+
+    # 4. Retry only the missed questions
+    if not st.session_state.quiz_retry.get(role):
+        if st.button(t("retry_btn", n=len(missed)), type="primary", icon=":material/replay:"):
+            st.session_state.quiz_retry[role] = True
+            st.session_state.quiz_attempts[role] = st.session_state.quiz_attempts.get(role, 0) + 1
+            st.rerun()
+        return
+
+    attempt = st.session_state.quiz_attempts.get(role, 1)
+    st.markdown(f"#### {t('retry_title')}")
+    with st.container(key="quiz_box_retry"), st.form(f"quiz_retry_{role}_{attempt}"):
+        retry = {}
+        for _, q in missed.iterrows():
+            st.markdown(f"**{q['id']}**")
+            show_text(q["question_ar"])
+            retry[q["id"]] = st.radio(
+                "answer", ["A", "B", "C"],
+                format_func=lambda o, q=q: q[f"option_{o.lower()}"],
+                index=None, key=f"retry_{role}_{attempt}_{q['id']}", label_visibility="collapsed",
+            )
+        retry_submitted = st.form_submit_button(t("retry_submit"), type="primary")
+
+    if retry_submitted:
+        if None in retry.values():
+            st.warning(t("answer_all"))
+        else:
+            before = st.session_state.quiz_score[role]
+            save_quiz_answers(role, {**given, **retry})
+            st.session_state.quiz_retry[role] = False
+            st.session_state.quiz_last_gain[role] = st.session_state.quiz_score[role] - before
+            st.rerun()
+
+
+def save_quiz_answers(role, answers):
+    """Store a full set of answers and recompute the score."""
+    quiz = data["quiz"]
+    st.session_state.quiz_answers[role] = answers
+    st.session_state.quiz_score[role] = sum(
+        answers.get(q["id"]) == q["correct_option"] for _, q in quiz.iterrows()
+    )
+
+
+def related_scenario(fact, role):
+    """If a fact is a company value, return this track's scenario that practises it."""
+    if fact["topic"] != "Values":
+        return None
+    sc = data["scenarios"]
+    match = sc[(sc["department"] == role) & (sc["company_value"] == fact["keyword_en"])]
+    return None if match.empty else match.iloc[0]
 
 
 def progress_page():
