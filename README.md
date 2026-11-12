@@ -53,6 +53,20 @@ python run_tests.py
 
 Runs 39 tests (the jury test cases, the sample FAQ, extra tricky questions, routing and scenario feedback) and saves the results to `results/`. The latest results are also shown on the app's **Data & sources** page.
 
+## Added on 12 Nov 2026
+
+- Arabic / English interface switch and three text sizes (A, A+, A++)
+- Adaptive quiz: shows the source fact for each missed question, retry only those
+- Optional start date: "You are on day X of 90" marker on the plan (kept in the session only)
+- Questions are answered first; a customer question the sources can't answer becomes a practice scenario
+- Cancel scenario button
+- Contact guard: any phone number, email or link not found in the facts is blocked by code
+- About 25 Jordanian dialect words are converted to standard Arabic before the search
+
+Extra tests: python run_extra_tests.py   (10 dialect, 5 trick, 10 routing)
+Latest results: 39 of 39 main tests, 24 of 25 extra tests. The one failure (Arabic typed
+in Latin letters) happened while Gemini was unavailable; the app refused safely.
+
 ## Project structure
 
 | File | Purpose |
@@ -70,7 +84,9 @@ Runs 39 tests (the jury test cases, the sample FAQ, extra tricky questions, rout
 ## Privacy
 
 - No user accounts; the optional first name and all progress stay in the browser session and are never saved to a file.
-- Search runs locally. Only the question and the 5 retrieved facts are sent to Gemini, never the whole knowledge base.
+- Only the question, the track name and about 5 retrieved facts are sent to Gemini.
+For scenario feedback, that one scenario, its suggested response and the employee's
+response are sent. The name, start date, progress and the full knowledge base are never sent.
 - The API key is kept in `.env`, which is excluded from Git.
 
 ## Limitations
