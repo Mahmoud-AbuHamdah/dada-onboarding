@@ -16,6 +16,7 @@ TEXT = {
               "المواقف وخطة التعلم أمثلة تدريبية افتراضية وليست إجراءات رسمية لمجموعة الدادا. "
               "للسياسات الرسمية يُرجى التأكد من قسم الموارد البشرية. لا يتخذ هذا المساعد أي قرارات توظيف.",
     },
+    "text_size": {"en": "Text size", "ar": "حجم الخط"},
     "progress_short": {"en": "{pct}% complete", "ar": "مكتمل {pct}%"},
 
     # ---------- Navigation ----------
@@ -63,6 +64,9 @@ TEXT = {
     "kpi_quiz": {"en": "Quiz score", "ar": "نتيجة الاختبار"},
     "kpi_quiz_none": {"en": "not taken yet", "ar": "لم يُؤدَّ بعد"},
     "kpi_quiz_done": {"en": "practice quiz", "ar": "اختبار تدريبي"},
+    "kpi_day": {"en": "Day in the plan", "ar": "اليوم في الخطة"},
+    "kpi_day_none": {"en": "add your start date in the plan", "ar": "أضف تاريخ بدء العمل في الخطة"},
+    "kpi_day_over": {"en": "the 90 days have passed", "ar": "انتهت فترة الـ 90 يوماً"},
     "next_step": {"en": "Suggested next step", "ar": "الخطوة التالية المقترحة"},
     "next_ask": {"en": "Ask your first question about the company, for example how to request leave.",
                  "ar": "اطرح سؤالك الأول عن الشركة، مثلاً كيف تقدّم طلب إجازة."},
@@ -93,6 +97,13 @@ TEXT = {
                "ar": "لم يُعثر على مفتاح Gemini. ستُستخدم الإجابات الاحتياطية."},
     "waiting": {"en": "Waiting for your response to scenario {sid}.",
                 "ar": "بانتظار ردّك على الموقف {sid}."},
+    "cancel_scenario": {"en": "Cancel scenario", "ar": "إلغاء الموقف"},
+    "guard_contact": {
+        "en": "Safety check: the draft answer contained a phone number, email or link that is not "
+              "in the sources, so it was not shown.",
+        "ar": "فحص الأمان: احتوت مسودة الإجابة على رقم هاتف أو بريد إلكتروني أو رابط غير موجود في "
+              "المصادر، لذلك لم تُعرض.",
+    },
     "chat_placeholder": {"en": "Ask a question, practise a situation, or report progress...",
                          "ar": "اطرح سؤالاً، أو تدرّب على موقف، أو سجّل تقدّمك..."},
     "thinking": {"en": "Looking in the knowledge base...", "ar": "جارٍ البحث في قاعدة المعرفة..."},
@@ -140,6 +151,24 @@ TEXT = {
         "ar": "تقييمات فترة التجربة إجراء منفصل لدى الموارد البشرية: وفق K14، تنطبق تقييمات نهاية الشهر "
               "الأول والثاني على الوظائف الإدارية والإشرافية وغير التشغيلية فقط.",
     },
+    "start_date": {"en": "Your start date (optional)", "ar": "تاريخ بدء العمل (اختياري)"},
+    "start_date_help": {
+        "en": "Only used to show where you are in the 90 days. It stays in this session, "
+              "is never saved and is never sent to the AI.",
+        "ar": "يُستخدم فقط لإظهار موقعك ضمن الـ 90 يوماً. يبقى في هذه الجلسة، ولا يُحفظ ولا يُرسل "
+              "إلى الذكاء الاصطناعي.",
+    },
+    "day_none": {"en": "Add your start date to see which day of the 90 you are on.",
+                 "ar": "أضف تاريخ بدء العمل لمعرفة موقعك ضمن الـ 90 يوماً."},
+    "day_status": {"en": "You are on day {day} of 90.", "ar": "أنت في اليوم {day} من 90."},
+    "day_next": {"en": "Next milestone: {milestone}, {when}.", "ar": "المرحلة التالية: {milestone}، {when}."},
+    "day_over": {"en": "The 90 days of this plan have passed. Review any milestone you have not marked as done.",
+                 "ar": "انتهت فترة الـ 90 يوماً لهذه الخطة. راجع أي مرحلة لم تسجّل إنجازها."},
+    "day_n": {"en": "Day {n}", "ar": "اليوم {n}"},
+    "you_are_here": {"en": "You are here", "ar": "أنت هنا"},
+    "ms_now": {"en": "This week", "ar": "هذا الأسبوع"},
+    "ms_today": {"en": "today", "ar": "اليوم"},
+    "ms_passed": {"en": "Date passed", "ar": "مرّ موعدها"},
     "suggested_activity": {"en": "Suggested activity", "ar": "النشاط المقترح"},
     "mark_done": {"en": "Mark {milestone} as done", "ar": "تسجيل إنجاز {milestone}"},
     "quiz_title": {"en": "Knowledge quiz", "ar": "اختبار المعرفة"},

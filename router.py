@@ -4,10 +4,8 @@ import numpy as np
 
 from retrieval import normalize_ar
 
-# Arabic-Indic digits (٠-٩) -> normal digits (0-9)
 ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 
-# Words are written already normalized (no hamza on alef, ة -> ه)
 DONE_WORDS = ["اكملت", "انهيت", "انتهيت", "خلصت", "انجزت",
               "completed", "finished", "done"]
 SCENARIO_WORDS = ["عميل", "زبون", "موقف", "سيناريو",
@@ -21,29 +19,53 @@ MILESTONES = [
 ]
 
 
+# Words that usually start a question: formal Arabic, Jordanian dialect and English
+QUESTION_STARTS = {normalize_ar(w) for w in [
+    "هل", "ما", "ماذا", "متى", "كيف", "من", "أين", "كم", "لماذا",
+    "شو", "وين", "قديش", "مين", "ليش", "إيمتى",
+    "what", "who", "when", "where", "why", "how", "which",
+    "can", "could", "do", "does", "is", "are", "should",
+]}
+
+
 def clean(message):
     """Normalize the message the same way as the knowledge base."""
     return normalize_ar(message).translate(ARABIC_DIGITS)
 
 
+def looks_like_question(message):
+    """True if the message ends with a question mark or starts with a question word."""
+    if message.strip().endswith(("?", "؟")):
+        return True
+    words = clean(message).split()
+    return bool(words) and words[0] in QUESTION_STARTS
+
+
 def detect_intent(message):
     """Decide what kind of message this is: progress, scenario or question."""
     text = clean(message)
+    has_done = any(w in text for w in DONE_WORDS)
+    has_scenario = any(w in text for w in SCENARIO_WORDS)
 
-    if any(w in text for w in DONE_WORDS):
+    # A message phrased as a question is answered as a question first.
+    # If it also mentions a customer situation, a scenario can follow
+    # when the knowledge base has no answer.
+    if looks_like_question(message) and (has_done or has_scenario):
+        return {"intent": "question", "scenario_if_unanswered": has_scenario}
+
+    if has_done:
         for name, pattern in MILESTONES:
             if re.search(pattern, text):
                 return {"intent": "progress", "milestone": name}
         return {"intent": "progress", "milestone": None}   # which one? ask
 
-    if any(w in text for w in SCENARIO_WORDS):
+    if has_scenario:
         return {"intent": "scenario"}
 
     return {"intent": "question"}
 
 
 def mentioned_role(message):
-    """Return the role named in the message, if any."""
     text = clean(message)
     if "مبيعات" in text or "sales" in text:
         return "Sales"
@@ -53,7 +75,6 @@ def mentioned_role(message):
 
 
 def pick_scenario(message, scenarios, model):
-    """Choose the scenario whose situation is closest in meaning to the message."""
     texts = ("passage: " + scenarios["scenario_ar"]).tolist()
     vecs = model.encode(texts, normalize_embeddings=True)
     q = model.encode(["query: " + message], normalize_embeddings=True)[0]

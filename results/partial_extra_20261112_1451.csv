@@ -1,0 +1,11 @@
+﻿test_id,type,input,expected,got,result,note
+R01,routing,أنا موظف مبيعات وعميل يسأل عن ميزة غير مؤكدة,scenario,scenario,PASS,
+R02,routing,أنا موظف توصيل والعميل غاضب بسبب التأخير,scenario,scenario,PASS,
+R03,routing,أكملت نشاط اليوم 30,progress Day 30,progress Day 30,PASS,
+R04,routing,ماذا أفعل إذا كان العميل غاضباً؟,question (scenario if no answer),question (scenario if no answer),PASS,
+R05,routing,Can I share company files with a customer?,question (scenario if no answer),question (scenario if no answer),PASS,
+R06,routing,Who do I contact when I'm done with onboarding?,question,question,PASS,
+R07,routing,I finished the first week,progress Days 1-7,progress Days 1-7,PASS,
+R08,routing,خلصت اليوم ٦٠,progress Day 60,progress Day 60,PASS,
+R09,routing,شو أعمل إذا الزبون معصب؟,question (scenario if no answer),question (scenario if no answer),PASS,
+R10,routing,A customer is angry about a late delivery,scenario,scenario,PASS,

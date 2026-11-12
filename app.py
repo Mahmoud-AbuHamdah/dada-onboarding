@@ -1,3 +1,4 @@
+import datetime
 import glob
 import html
 import os
@@ -62,6 +63,8 @@ DEFAULTS = {
     "quiz_attempts": {},        # role -> number of retries started
     "quiz_last_gain": {},       # role -> points gained in the last retry
     "pending_scenario": None,   # scenario id waiting for the user's response
+    "text_size": "normal",      # normal, large or xlarge
+    "start_date": None,         # optional first working day, for the 90-day marker
 }
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
@@ -74,6 +77,8 @@ for key, value in DEFAULTS.items():
 ARABIC_RE = re.compile(r"[؀-ۿ]")
 ROLE_ICON = {"Sales": "🛒", "Delivery": "🚚"}
 LANG_LABELS = {"en": "English", "ar": "العربية"}
+TEXT_SIZES = {"normal": 16, "large": 18, "xlarge": 20}          # base font size in pixels
+SIZE_LABELS = {"normal": "A", "large": "A+\u200e", "xlarge": "A++\u200e"}   # \u200e keeps "A+" in order in Arabic
 
 
 def is_ar():
@@ -148,10 +153,27 @@ def load_css():
     .txt {line-height:1.65;}
     .muted {color:#6B5644;}
 
+    /* Waiting-for-response bar and the 90-day timeline */
+    .st-key-cardaccent_waiting {padding:10px 16px;}
+    .tl-wrap {padding:6px 14px 0 14px;}
+    .tl {position:relative; height:10px; background:#E9DDCD; border-radius:999px; margin-top:26px;}
+    .tl-fill {position:absolute; top:0; bottom:0; inset-inline-start:0; background:#6F4E37; border-radius:999px;}
+    .tl-tick {position:absolute; top:-4px; width:2px; height:18px; background:#B9A48D;}
+    .tl-dot {position:absolute; top:-6px; width:22px; height:22px; margin-inline-start:-11px;
+        background:#FFFDF9; border:5px solid #6F4E37; border-radius:50%; box-shadow:0 1px 4px rgba(43,29,20,.3);}
+    .tl-here {position:absolute; top:-32px; white-space:nowrap; font-size:.8rem; font-weight:600; color:#6F4E37;}
+    .tl-labels {position:relative; height:26px; margin-top:8px; color:#6B5644; font-size:.82rem;}
+    .tl-labels span {position:absolute; white-space:nowrap;}
+    .ms-badge {display:inline-block; border-radius:999px; padding:2px 12px; font-size:.8rem; font-weight:600;
+        background:#EFE6DA; color:#4A3527;}
+    .ms-badge-now {background:#6F4E37; color:#FAF6F0;}
+    .ms-badge-passed {background:#F0EBE4; color:#8A7563;}
+
     /* Typed text follows its own direction; quiz options right to left */
     textarea, input[type='text'] {unicode-bidi: plaintext; text-align: start;}
     .st-key-quiz_box div[role='radiogroup'], .st-key-quiz_box_retry div[role='radiogroup'] {direction: rtl;}
     """
+    css += "html {font-size: %dpx !important;}" % TEXT_SIZES[st.session_state.text_size]
     if is_ar():
         css += """
         .stApp, [data-testid="stSidebar"] {direction: rtl;}
@@ -212,6 +234,86 @@ def language_switch():
     )
 
 
+def _on_size_change():
+    choice = st.session_state.get("size_widget")
+    if choice:
+        st.session_state.text_size = choice
+
+
+def text_size_switch():
+    st.segmented_control(
+        t("text_size"), options=list(TEXT_SIZES), format_func=SIZE_LABELS.get,
+        default=st.session_state.text_size, key="size_widget", on_change=_on_size_change,
+    )
+
+
+# =====================================================================
+# The 90-day plan: which day is the employee on?
+# =====================================================================
+PLAN_DAYS = 90
+MILESTONE_DAY = {"Days 1-7": 7, "Day 30": 30, "Day 60": 60, "Day 90": 90}
+
+
+def plan_day():
+    """Day number in the plan (1 = the start date), or None if no date was given."""
+    start = st.session_state.start_date
+    if not start:
+        return None
+    return (datetime.date.today() - start).days + 1
+
+
+def days_text(n):
+    """'in 3 days', with the correct Arabic plural."""
+    if not is_ar():
+        return "in 1 day" if n == 1 else f"in {n} days"
+    if n == 1:
+        return "بعد يوم واحد"
+    if n == 2:
+        return "بعد يومين"
+    return f"بعد {n} أيام" if n <= 10 else f"بعد {n} يوماً"
+
+
+def milestone_timing(milestone, day):
+    """Where a milestone is compared with today. Returns (kind, text)."""
+    target = MILESTONE_DAY[milestone]
+    if milestone == "Days 1-7" and day <= 7:
+        return "now", t("ms_now")
+    if day == target:
+        return "now", t("ms_today")
+    if day < target:
+        return "soon", days_text(target - day)
+    return "passed", t("ms_passed")
+
+
+def next_milestone(day):
+    """The first milestone that has not passed yet: (name, text), or None."""
+    for name in MILESTONE_DAY:
+        kind, text = milestone_timing(name, day)
+        if kind != "passed":
+            return name, text
+    return None
+
+
+def show_timeline(day):
+    """A bar for the 90 days with a marker on today."""
+    pos = min(max(day, 1), PLAN_DAYS) / PLAN_DAYS * 100
+    shift = "50%" if is_ar() else "-50%"            # centre labels in both directions
+    ticks = "".join(f'<span class="tl-tick" style="inset-inline-start:{d / PLAN_DAYS * 100:.1f}%"></span>'
+                    for d in (7, 30, 60))
+    labels = "".join(
+        f'<span style="inset-inline-start:{d / PLAN_DAYS * 100:.1f}%; transform:translateX({shift})">'
+        f'{html.escape(t("day_n", n=d))}</span>' for d in (7, 30, 60))
+    labels += f'<span style="inset-inline-end:0">{html.escape(t("day_n", n=90))}</span>'
+    here = (f'<span class="tl-here" style="inset-inline-start:{pos:.1f}%; transform:translateX({shift})">'
+            f'{html.escape(t("you_are_here"))}</span>') if 12 < pos < 88 else ""
+    st.markdown(
+        f'<div class="tl-wrap"><div class="tl">{here}<div class="tl-fill" style="width:{pos:.1f}%"></div>{ticks}'
+        f'<span class="tl-dot" style="inset-inline-start:{pos:.1f}%"></span></div>'
+        f'<div class="tl-labels">{labels}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
 # =====================================================================
 # Showing answers and feedback
 # =====================================================================
@@ -237,6 +339,9 @@ def show_answer(out):
     if badges:
         st.markdown(f'<div class="src-row">{badges}</div>', unsafe_allow_html=True)
 
+    if out.get("guard") == "contact":
+        st.caption("🛡️ " + t("guard_contact"))
+
     if out["mode"] == "fallback":
         st.warning(t("fallback_warn"))
         if out.get("error"):
@@ -254,8 +359,20 @@ def show_answer(out):
             show_text(f["text"], "muted")
 
 
+def safe_score(value):
+    """Turn the AI's score into a whole number from 0 to 5, whatever shape it came in."""
+    found = re.search(r"\d+", str(value))          # 4, "4", 4.0 and "4/5" all give 4
+    return max(0, min(5, int(found.group()))) if found else 0
+
+
+def save_feedback(sid, fb):
+    fb["score"] = safe_score(fb.get("score"))
+    st.session_state.feedback[sid] = fb
+    st.session_state.done_scenarios.add(sid)
+
+
 def show_feedback(fb, sc):
-    score = int(fb.get("score", 0))
+    score = safe_score(fb.get("score"))
     st.markdown(f"#### {t('feedback')}: {'★' * score}{'☆' * (5 - score)} ({score}/5)")
     if fb["mode"] == "fallback":
         st.warning(t("fb_fallback"))
@@ -267,7 +384,8 @@ def show_feedback(fb, sc):
         show_text(fb["improve"])
     v = fb["value"]
     st.info(f"💎 {t('company_value', name=value_name(v), id=v['id'])}")
-    show_text(fb["value_link"])
+    if fb.get("value_link"):
+        show_text(fb["value_link"])
     with st.expander(t("suggested_response")):
         show_text(sc["suggested_good_response_ar"])
         if fb.get("model"):
@@ -289,6 +407,41 @@ def activity_label(item):
 # =====================================================================
 # The chat router
 # =====================================================================
+NO_ANSWER_INTRO = {
+    "ar": "لا تجيب مصادري عن هذا السؤال مباشرة، لكن يمكنك التدرّب عليه في موقف تدريبي:",
+    "en": "My sources don't answer this question directly, but you can practise it as a scenario:",
+}
+CANCELLED = {"ar": ["تم إلغاء الموقف. يمكنك طرح سؤال أو بدء موقف آخر."],
+             "en": ["Scenario cancelled. You can ask a question or start another scenario."]}
+
+
+def start_scenario(message, role, intro=None):
+    """Pick the closest scenario and wait for the user's response."""
+    sc_role = mentioned_role(message) or role
+    options = data["scenarios"][data["scenarios"]["department"] == sc_role]
+    sc = pick_scenario(message, options, get_model())
+    st.session_state.pending_scenario = sc["id"]
+    v = value_info(data["kb"], sc["company_value"])
+    content = {
+        "ar": [f"🎭 موقف تدريبي {sc['id']} · {ROLE_TEXT[sc_role]['ar']['name']} · القيمة: {v['name_ar']}",
+               sc["scenario_ar"],
+               "كيف سترد؟ اكتب ردك في رسالتك التالية، أو اضغط «إلغاء الموقف»."],
+        "en": [f"🎭 Practice scenario {sc['id']} · {sc_role} · value: {v['name_en']}",
+               sc["scenario_ar"],
+               "How would you respond? Type your answer in your next message, or press Cancel scenario."],
+    }
+    if intro:
+        for lang in content:
+            content[lang].insert(0, intro[lang])
+    return {"kind": "text", "content": content}
+
+
+def cancel_scenario():
+    """Cancel button: stop waiting for a response."""
+    st.session_state.pending_scenario = None
+    st.session_state.messages.append({"role": "assistant", "kind": "text", "content": CANCELLED})
+
+
 def handle_message(message, role):
     """Decide what to do with a chat message. Returns the assistant's reply."""
 
@@ -297,12 +450,10 @@ def handle_message(message, role):
         sid = st.session_state.pending_scenario
         st.session_state.pending_scenario = None
         if message.strip().lower() in ("إلغاء", "الغاء", "cancel"):
-            return {"kind": "text", "content": {"ar": ["تم إلغاء الموقف."],
-                                                 "en": ["Scenario cancelled."]}}
+            return {"kind": "text", "content": CANCELLED}
         sc = scenario_by_id(sid)
         fb = evaluate_response(sc, message, data["kb"], client, get_model())
-        st.session_state.feedback[sid] = fb
-        st.session_state.done_scenarios.add(sid)
+        save_feedback(sid, fb)
         return {"kind": "feedback", "content": fb, "scenario_id": sid}
 
     intent = detect_intent(message)
@@ -325,22 +476,15 @@ def handle_message(message, role):
 
     # 3. Start a scenario
     if intent["intent"] == "scenario":
-        sc_role = mentioned_role(message) or role
-        options = data["scenarios"][data["scenarios"]["department"] == sc_role]
-        sc = pick_scenario(message, options, get_model())
-        st.session_state.pending_scenario = sc["id"]
-        v = value_info(data["kb"], sc["company_value"])
-        return {"kind": "text", "content": {
-            "ar": [f"🎭 موقف تدريبي {sc['id']} · {ROLE_TEXT[sc_role]['ar']['name']} · القيمة: {v['name_ar']}",
-                   sc["scenario_ar"],
-                   "كيف سترد؟ اكتب ردك في رسالتك التالية، أو اكتب «إلغاء»."],
-            "en": [f"🎭 Practice scenario {sc['id']} · {sc_role} · value: {v['name_en']}",
-                   sc["scenario_ar"],
-                   "How would you respond? Type your answer in your next message, or type 'cancel'."],
-        }}
+        return start_scenario(message, role)
 
-    # 4. A normal question
+    # 4. A question: answer it from the knowledge base
     out = answer_question(message, role, retrievers["AI (meaning)"], data["kb"], client)
+
+    # A question about a customer situation that the sources can't answer
+    # becomes a practice scenario instead of a dead end
+    if intent.get("scenario_if_unanswered") and out["status"] == "refused":
+        return start_scenario(message, role, intro=NO_ANSWER_INTRO)
     return {"kind": "answer", "content": out}
 
 
@@ -353,8 +497,10 @@ def queue_message(text):
 # Pages
 # =====================================================================
 def welcome_page():
-    top = st.columns([3, 1])
+    top = st.columns([4, 1, 1])
     with top[1]:
+        text_size_switch()
+    with top[2]:
         language_switch()
     st.markdown(
         f'<div class="app-header"><div class="app-title">🎓 {html.escape(t("app_name"))}</div></div>',
@@ -408,12 +554,20 @@ def home_page():
     scen = [i for i in items if i["type"] == "scenario"]
     score = st.session_state.quiz_score.get(role)
 
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     kpi(c1, t("kpi_completion"), f"{completion_percent(items)}%",
         t("kpi_completion_sub", done=n_done, total=len(items)))
     kpi(c2, t("kpi_scenarios"), f"{sum(i['done'] for i in scen)}/{len(scen)}", t("kpi_scenarios_sub"))
     kpi(c3, t("kpi_quiz"), f"{score}/{len(data['quiz'])}" if score is not None else "—",
         t("kpi_quiz_done") if score is not None else t("kpi_quiz_none"))
+    day = plan_day()
+    if day is None:
+        kpi(c4, t("kpi_day"), "—", t("kpi_day_none"))
+    elif day > PLAN_DAYS:
+        kpi(c4, t("kpi_day"), "90+", t("kpi_day_over"))
+    else:
+        name, when = next_milestone(day)
+        kpi(c4, t("kpi_day"), f"{day}/{PLAN_DAYS}", f"{milestone_name(name)}: {when}")
 
     st.write("")
     text, target = next_step(role)
@@ -460,7 +614,11 @@ def assistant_page():
                 show_text(m["content"])
 
     if st.session_state.pending_scenario:
-        st.info("🎭 " + t("waiting", sid=st.session_state.pending_scenario))
+        with st.container(key="cardaccent_waiting"):
+            cols = st.columns([4, 1], vertical_alignment="center")
+            cols[0].markdown("🎭 " + t("waiting", sid=st.session_state.pending_scenario))
+            cols[1].button(t("cancel_scenario"), on_click=cancel_scenario,
+                           icon=":material/close:", width="stretch")
 
     # A new message: typed, or an example button clicked
     message = st.chat_input(t("chat_placeholder"))
@@ -501,8 +659,7 @@ def scenarios_page():
     if st.button(t("get_feedback"), type="primary", disabled=not answer.strip()):
         with st.spinner(t("reviewing")):
             fb = evaluate_response(sc, answer, data["kb"], client, get_model())
-        st.session_state.feedback[sc["id"]] = fb
-        st.session_state.done_scenarios.add(sc["id"])
+        save_feedback(sc["id"], fb)
 
     fb = st.session_state.feedback.get(sc["id"])
     if fb:
@@ -518,8 +675,32 @@ def toggle_milestone(key):
         st.session_state.done_milestones.add(key)
 
 
+def _on_start_change():
+    st.session_state.start_date = st.session_state.get("start_widget")
+
+
 def plan_page():
     page_header(t("nav_plan"), t("plan_sub"))
+
+    # Where am I in the 90 days? Needs only an optional start date.
+    with st.container(key="card_day"):
+        cols = st.columns([1, 2], vertical_alignment="center")
+        cols[0].date_input(t("start_date"), value=st.session_state.start_date, key="start_widget",
+                           max_value=datetime.date.today(), format="DD/MM/YYYY",
+                           help=t("start_date_help"), on_change=_on_start_change)
+        day = plan_day()
+        with cols[1]:
+            if day is None:
+                show_text(t("day_none"), "muted")
+            elif day > PLAN_DAYS:
+                show_text(t("day_over"))
+            else:
+                name, when = next_milestone(day)
+                show_text(t("day_status", day=day) + " " +
+                          t("day_next", milestone=milestone_name(name), when=when))
+        if day is not None:
+            show_timeline(day)
+
     st.caption(t("probation_note"))
 
     role = st.session_state.role
@@ -531,6 +712,10 @@ def plan_page():
         st.session_state[cb_key] = done
         with st.container(key=f"card_ms_{role}_{r['milestone'].replace(' ', '_')}"):
             st.markdown(f"### {'✅' if done else '○'} {milestone_name(r['milestone'])}")
+            if day is not None and r["milestone"] in MILESTONE_DAY:
+                kind, when = milestone_timing(r["milestone"], day)
+                st.markdown(f'<span class="ms-badge ms-badge-{kind}">{html.escape(when)}</span>',
+                            unsafe_allow_html=True)
             show_text(r["learning_goal_ar"])
             st.caption(f"{t('suggested_activity')}: {SUGGESTIONS[r['milestone']][st.session_state.lang]}")
             st.checkbox(t("mark_done", milestone=milestone_name(r["milestone"])), key=cb_key,
@@ -740,8 +925,20 @@ def data_page():
         if len(failed):
             st.warning(f"{len(failed)} tests did not pass:")
             st.dataframe(failed[["test_id", "input", "expected", "got", "result"]], hide_index=True)
-            st.caption("I04 and I05 are known limitations of the keyword routing.")
         with st.expander("All test results"):
+            st.dataframe(results, hide_index=True)
+
+    extra = sorted(glob.glob("results/extra_results_*.csv"))
+    if extra:
+        st.subheader("🧪 Extra tests: dialect, trick questions and routing")
+        results = pd.read_csv(extra[-1], encoding="utf-8-sig").fillna("")
+        n_pass = (results["result"] == "PASS").sum()
+        st.write(f"Latest run: `{os.path.basename(extra[-1])}` · "
+                 f"**{n_pass} of {len(results)}** tests passed")
+        by_type = results.groupby("type")["result"].apply(
+            lambda s: f"{(s == 'PASS').sum()} of {len(s)}")
+        st.dataframe(by_type.rename("passed"))
+        with st.expander("All extra test results"):
             st.dataframe(results, hide_index=True)
 
     st.divider()
@@ -779,6 +976,7 @@ def render_sidebar():
                   width="stretch")
         st.divider()
         language_switch()
+        text_size_switch()
         st.divider()
         st.caption(t("disclaimer"))
 

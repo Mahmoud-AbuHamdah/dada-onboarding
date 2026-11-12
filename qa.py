@@ -81,6 +81,18 @@ def fallback(facts, error=None, value_ids=()):
     return {"status": "refused", "answer": REFUSAL, "used_ids": [],
             "facts": facts, "mode": "fallback", "error": error}
 
+# =====================================================================
+# qa.py - Step 13 changes
+#
+# In your qa.py, find the line that starts with:   def call_gemini(
+# Delete from that line down to the END of the file, then paste
+# everything below this box in its place.
+#
+# Do NOT touch anything above def call_gemini( : your SYSTEM_PROMPT,
+# get_client, gather_facts and fallback stay exactly as they are.
+# =====================================================================
+
+
 def call_gemini(client, system_prompt, prompt):
     """Send one prompt, trying each model in order.
     Returns (result, model_used, errors). result is None if every model failed."""
@@ -96,15 +108,125 @@ def call_gemini(client, system_prompt, prompt):
                     response_mime_type="application/json",
                 ),
             )
-            return json.loads(response.text), model, errors
+            result = json.loads(response.text)
+            if not isinstance(result, dict):       # a list or plain text is unusable
+                raise ValueError("reply was not a JSON object")
+            return result, model, errors
         except Exception as e:
             errors.append(f"{model}: {e}")
     return None, None, errors
 
+
+# ---------- Contact guard ----------
+EASTERN_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+PHONE_LIKE = re.compile(r"\+?\d[\d\s\-()]{5,}\d")          # a run of digits, spaces and dashes
+EMAIL_OR_LINK = re.compile(r"\S+@\S+|https?://\S+|www\.\S+", re.IGNORECASE)
+
+
+def invented_contact(answer, facts, question=""):
+    """True if the answer contains a phone number, email or link that
+    appears in none of the facts (and was not typed by the user)."""
+    answer = str(answer).translate(EASTERN_DIGITS)
+    known = (" ".join(f["text"] for f in facts) + " " + question).translate(EASTERN_DIGITS)
+    known_digits = re.sub(r"\D", "", known)
+
+    for match in PHONE_LIKE.finditer(answer):
+        digits = re.sub(r"\D", "", match.group())
+        if len(digits) >= 7 and digits not in known_digits:   # 7+ digits = phone-like
+            return True
+    for match in EMAIL_OR_LINK.finditer(answer):
+        if match.group().lower() not in known.lower():
+            return True
+    return False
+
+
+# =====================================================================
+# qa.py - Step 13b changes (this replaces the earlier Step 13 paste)
+#
+# In your qa.py, find the line that starts with:   def call_gemini(
+# Delete from that line down to the END of the file, then paste
+# everything below this box in its place.
+#
+# Do NOT touch anything above that line: your SYSTEM_PROMPT,
+# get_client, gather_facts and fallback stay exactly as they are.
+# =====================================================================
+
+
+def call_gemini(client, system_prompt, prompt):
+    """Send one prompt, trying each model in order.
+    Returns (result, model_used, errors). result is None if every model failed."""
+    errors = []
+    for model in MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=0.1,
+                    response_mime_type="application/json",
+                ),
+            )
+            result = json.loads(response.text)
+            if not isinstance(result, dict):       # a list or plain text is unusable
+                raise ValueError("reply was not a JSON object")
+            return result, model, errors
+        except Exception as e:
+            errors.append(f"{model}: {e}")
+    return None, None, errors
+
+
+# ---------- Contact guard ----------
+EASTERN_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+PHONE_LIKE = re.compile(r"\+?\d[\d\s\-()]{5,}\d")          # a run of digits, spaces and dashes
+EMAIL_OR_LINK = re.compile(r"\S+@\S+|https?://\S+|www\.\S+", re.IGNORECASE)
+
+
+def invented_contact(answer, facts, question=""):
+    """True if the answer contains a phone number, email or link that
+    appears in none of the facts (and was not typed by the user)."""
+    answer = str(answer).translate(EASTERN_DIGITS)
+    known = (" ".join(f["text"] for f in facts) + " " + question).translate(EASTERN_DIGITS)
+    known_digits = re.sub(r"\D", "", known)
+
+    for match in PHONE_LIKE.finditer(answer):
+        digits = re.sub(r"\D", "", match.group())
+        if len(digits) >= 7 and digits not in known_digits:   # 7+ digits = phone-like
+            return True
+    for match in EMAIL_OR_LINK.finditer(answer):
+        if match.group().lower() not in known.lower():
+            return True
+    return False
+
+
+# ---------- Dialect ----------
+# Common Jordanian words and their standard Arabic form. The knowledge base is
+# written in standard Arabic, so the search works better on the standard wording.
+DIALECT = {
+    "شو": "ما", "ايش": "ما", "إيش": "ما",
+    "قديش": "كم", "أديش": "كم", "اديش": "كم",
+    "وين": "أين", "مين": "من", "ليش": "لماذا",
+    "ايمتى": "متى", "إيمتى": "متى", "امتى": "متى", "متا": "متى",
+    "بقدر": "هل يمكنني أن", "بدي": "أريد أن", "لازم": "يجب أن",
+    "باخد": "آخذ", "بتوصلني": "تصلني", "بتوصل": "تصل",
+    "تبعت": "لدى", "تبع": "لدى", "هاد": "هذا", "هاي": "هذه", "مش": "ليس",
+    "الجداد": "الجدد", "صاحبي": "صديقي", "الزبون": "العميل", "معصب": "غاضب",
+}
+DIALECT_RE = re.compile(r"(?<!\w)(" + "|".join(map(re.escape, DIALECT)) + r")(?!\w)")
+
+
+def to_standard(question):
+    """Replace dialect words with standard Arabic ones. Other text is unchanged."""
+    text = DIALECT_RE.sub(lambda m: DIALECT[m.group()], question)
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def answer_question(question, role, retriever, kb, client):
     """The full pipeline: find facts, ask the AI, check its reply."""
-    facts = gather_facts(question, retriever, kb)
+    standard = to_standard(question)                 # same as the question if no dialect words
+    facts = gather_facts(standard, retriever, kb)
     value_ids = set(kb.loc[kb["topic"] == "Values", "id"])
+
     # 1. Completely unrelated question: refuse without calling the AI
     if facts[0]["score"] < FLOOR:
         return {"status": "refused", "answer": REFUSAL, "used_ids": [],
@@ -114,25 +236,39 @@ def answer_question(question, role, retriever, kb, client):
     if client is None:
         return fallback(facts, error="No API key found", value_ids=value_ids)
 
-        # 3. Ask the AI: try each model in order until one works
+    # 3. Ask the AI: try each model in order until one works
     facts_text = "\n".join(f"[{f['id']}] {f['text']}" for f in facts)
     prompt = (f"Employee training track: {role}\n\nFACTS:\n{facts_text}\n\n"
               f"ANSWER LANGUAGE: {answer_language(question)}\n\nQUESTION:\n{question}")
-
+    if standard != question:
+        prompt += f"\n\nTHE SAME QUESTION IN STANDARD ARABIC:\n{standard}"
     out, model, errors = call_gemini(client, SYSTEM_PROMPT, prompt)
-    if out is None:                    # every model failed
+    if out is None or not str(out.get("answer", "")).strip():   # failed, or no answer text
+        errors = errors or ["reply had no answer text"]
         return fallback(facts, error=" | ".join(errors), value_ids=value_ids)
     out["model"] = model
+    out["answer"] = str(out["answer"])
+    if out.get("status") not in ("answered", "partial", "refused"):
+        out["status"] = "answered"
 
     # 4. Check the AI's reply: keep only IDs we actually gave it
     allowed = {f["id"] for f in facts}
-    out["used_ids"] = [i for i in out.get("used_ids", []) if i in allowed]
+    cited = out.get("used_ids")
+    out["used_ids"] = [i for i in cited if i in allowed] if isinstance(cited, list) else []
 
     # An answer with no valid source is not trusted
-    if out.get("status") != "refused" and not out["used_ids"]:
+    if out["status"] != "refused" and not out["used_ids"]:
         out["status"], out["answer"] = "refused", REFUSAL
+
+    # A phone number, email or link that is not in the facts is never shown
+    if invented_contact(out["answer"], facts, question):
+        out["status"], out["answer"], out["used_ids"] = "refused", REFUSAL, []
+        out["guard"] = "contact"
+
+    if out["status"] == "refused":                   # a refusal shows no source badges
+        out["used_ids"] = []
 
     out["facts"] = facts
     out["mode"] = "ai"
-    out["errors"] = errors      # failures of earlier models, if any
+    out["errors"] = errors
     return out

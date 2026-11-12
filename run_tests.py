@@ -48,7 +48,7 @@ INTENT_TESTS = [
     ("I01", "أكملت الأيام 1-7", "progress", "Days 1-7"),
     ("I02", "أكملت المرحلة", "progress", None),
     ("I03", "كيف أقدم طلب إجازة؟", "question", None),
-    # Known limitations, kept on purpose so the results are honest:
+    # Known limitations, ""
     ("I04", "هل يمكنني مشاركة ملفات مع عميل؟", "question", None),
     ("I05", "Who do I contact when I'm done with onboarding?", "question", None),
 ]

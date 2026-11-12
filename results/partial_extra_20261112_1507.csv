@@ -1,0 +1,11 @@
+﻿test_id,type,input,expected,got,result,note
+D01,dialect,قديش فترة التجربة؟,K14,answered (fallback) K14,PASS,"strict: status answered; top fact K14 0.87; fallback: gemini-3.1-flash-lite: 504 DEADLINE_EXCEEDED. {'error': {'code': 504, 'message': 'Deadline expired before operation coul; answer: فترة التجربة 90 يوماً، مع تقييمات في نهاية الشهر الأول والثاني للوظائف الإدارية والإشرافية وغير التشغيلية."
+D02,dialect,كيف باخد إجازة؟,K16,answered (fallback) K16,PASS,"top fact K16 0.86; fallback: gemini-3.1-flash-lite: 504 DEADLINE_EXCEEDED. {'error': {'code': 504, 'message': 'Deadline expired before operation coul; answer: يُقدَّم طلب الإجازة عبر نظام الموارد البشرية ويستلزم موافقة المدير المباشر قبل بدء الإجازة."
+D03,dialect,شو قيم الشركة؟,K05;K06;K07;K08;K09,answered (ai) K05;K06;K07;K08;K09,PASS,strict: all five values; top fact K06 0.83; answer: قيم المجموعة المشتركة هي: فريق واحد، محورية العميل، النزاهة، المثابرة، والمسؤولية الاجتماعية.
+D04,dialect,ايمتى بتوصلني رسالة الترحيب؟,K13,answered (ai) K13,PASS,top fact K13 0.86; answer: تُرسل رسالة الترحيب خلال الأيام الثلاثة الأولى للموظفين الذين لديهم بريد إلكتروني للعمل.
+D05,dialect,مين المسؤول عن تهيئة الموظفين الجداد؟,K10,answered (ai) K10,PASS,top fact K10 0.85; answer: دائرة الموارد البشرية هي المسؤولة عن تطبيق سياسة انضمام وتهيئة الموظفين الجدد.
+D06,dialect,وين المعارض تبعت الشركة؟,K02,answered (ai) K02,PASS,top fact K02 0.84; answer: تمتلك المجموعة 17 معرضاً في عمان والسلط وإربد والزرقاء والعقبة.
+D07,dialect,بقدر أشارك معلومات الشركة مع صاحبي؟,K17,answered (ai) K17,PASS,top fact K17 0.82; answer: يجب المحافظة على سرية معلومات الشركة وعدم إفشائها دون تصريح.
+D08,dialect,قديش راتبي؟,refuse,refused (ai) -,PASS,top fact K12 0.79; answer: هذه المعلومات غير متوفرة في المصادر المتاحة لدي، يرجى مراجعة قسم الموارد البشرية.
+D09,dialect,متا تاسست المجموعه,K01,answered (ai) K01,PASS,top fact K01 0.85; answer: تأسست مجموعة الدادا عام 1991.
+D10,dialect,kif a2adem talab ejazeh?,K16,answered (ai) K16,PASS,top fact K13 0.81; answer: Leave requests must be submitted through the HR system and require the direct manager's approval before the leave begins.
